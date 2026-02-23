@@ -214,6 +214,11 @@ Current combat input profile (`bdo_combo_v1`):
 - `press_shift_f` -> frontal long-range, 8s CD
 - `press_s_lmb` -> frontal finisher, no CD
 
+Enemy visual signature for primary labeling:
+- pale/stone-like humanoid silhouette,
+- frequent large melee weapon shape,
+- yellow exclamation mark above head as dominant engaged marker.
+
 ---
 
 ## 8) Auto-Labeling Strategy

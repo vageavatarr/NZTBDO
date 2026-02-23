@@ -237,3 +237,9 @@ These rules are required for initial supervised labeling:
 - `Shift+LMB`: short-range frontal hit, cooldown 7s.
 - `Shift+F`: long-range frontal hit, cooldown 8s.
 - `S+LMB`: short-range finisher, no cooldown, very small radius (1-2 targets).
+
+6. Enemy visual signature (primary farm target):
+- Humanoid, pale/stone-like body and armor silhouette.
+- Large melee weapon is frequently visible.
+- Yellow exclamation mark above head is the strongest aggro/engaged marker.
+- In dense foliage/partial occlusion, exclamation mark should be prioritized over full-body visibility.
