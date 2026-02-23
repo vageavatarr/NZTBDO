@@ -37,9 +37,13 @@ class SessionLogger:
         action: str,
         reason: str,
         execution: Any,
+        navigation: Any | None = None,
     ) -> None:
         input_data = asdict(tick_input) if is_dataclass(tick_input) else dict(tick_input)
         exec_data = asdict(execution) if is_dataclass(execution) else dict(execution)
+        nav_data = None
+        if navigation is not None:
+            nav_data = asdict(navigation) if is_dataclass(navigation) else dict(navigation)
         self.write_event(
             {
                 "event_type": "tick",
@@ -49,5 +53,6 @@ class SessionLogger:
                 "action": action,
                 "reason": reason,
                 "execution": exec_data,
+                "navigation": nav_data,
             }
         )

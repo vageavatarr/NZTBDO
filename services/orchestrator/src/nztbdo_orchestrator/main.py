@@ -17,6 +17,10 @@ _INPUT_SRC = _ROOT / "services" / "input-control" / "src"
 if str(_INPUT_SRC) not in sys.path:
     sys.path.insert(0, str(_INPUT_SRC))
 
+_NAV_SRC = _ROOT / "services" / "navigation" / "src"
+if str(_NAV_SRC) not in sys.path:
+    sys.path.insert(0, str(_NAV_SRC))
+
 from nztbdo_combat.selector import CombatSnapshot, Decision, load_selector_from_yaml
 _CAPTURE_SRC = _ROOT / "services" / "capture" / "src"
 if str(_CAPTURE_SRC) not in sys.path:
@@ -24,6 +28,7 @@ if str(_CAPTURE_SRC) not in sys.path:
 
 from nztbdo_capture.session_logger import SessionLogger
 from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
+from nztbdo_navigation.route_runner import NavigationStatus, load_route_runner_from_yaml
 
 
 class FSMState(str, Enum):
@@ -47,6 +52,8 @@ class TickInput:
     panic: bool = False
     paused: bool = False
     skill_cd: dict[str, float] | None = None
+    pos_x: float = 0.0
+    pos_y: float = 0.0
 
 
 @dataclass
@@ -55,6 +62,7 @@ class TickResult:
     action: str
     reason: str
     execution: ExecutionResult
+    navigation: NavigationStatus | None = None
 
 
 class Orchestrator:
@@ -64,6 +72,10 @@ class Orchestrator:
         self._combat_selector = load_selector_from_yaml(skills_config)
         self._executor = ActionExecutor(max_hz=self._read_action_rate_limit(), dry_run=True)
         self._logger = SessionLogger(_ROOT / "data" / "logs")
+        self._nav_runner = load_route_runner_from_yaml(
+            _ROOT / "shared" / "config" / "route.yaml",
+            stuck_timeout_sec=float(self._read_stuck_timeout_sec()),
+        )
 
     def start(self) -> None:
         if self.state == FSMState.IDLE:
@@ -80,6 +92,7 @@ class Orchestrator:
                 action=action,
                 reason="panic_hotkey",
                 execution=self._executor.execute(action),
+                navigation=None,
             )
             self._log_tick(inp, result)
             return result
@@ -92,9 +105,19 @@ class Orchestrator:
                 action=action,
                 reason="pause_hotkey",
                 execution=self._executor.execute(action),
+                navigation=None,
             )
             self._log_tick(inp, result)
             return result
+
+        nav = self._nav_runner.tick(
+            pos_x=inp.pos_x,
+            pos_y=inp.pos_y,
+            in_combat=self.state == FSMState.COMBAT,
+        )
+
+        if nav.stuck and self.state not in {FSMState.PANIC_STOP, FSMState.PAUSED, FSMState.COMBAT}:
+            self.state = FSMState.RECOVERY
 
         if inp.stuck and self.state not in {FSMState.PANIC_STOP, FSMState.PAUSED}:
             self.state = FSMState.RECOVERY
@@ -104,6 +127,7 @@ class Orchestrator:
                 action=action,
                 reason="stuck_detected",
                 execution=self._executor.execute(action),
+                navigation=nav,
             )
             self._log_tick(inp, result)
             return result
@@ -142,26 +166,30 @@ class Orchestrator:
                 action=decision.action,
                 reason=decision.reason,
                 execution=execution,
+                navigation=nav,
             )
             self._log_tick(inp, result)
             return result
 
-        decision = self._default_action_for_state(self.state)
+        decision = self._default_action_for_state(self.state, nav)
         execution = self._executor.execute(decision.action)
         result = TickResult(
             state=self.state,
             action=decision.action,
             reason=decision.reason,
             execution=execution,
+            navigation=nav,
         )
         self._log_tick(inp, result)
         return result
 
     @staticmethod
-    def _default_action_for_state(state: FSMState) -> Decision:
+    def _default_action_for_state(state: FSMState, nav: NavigationStatus | None) -> Decision:
         if state == FSMState.IDLE:
             return Decision(action="idle", reason="await_start")
         if state == FSMState.PATROL:
+            if nav is not None:
+                return Decision(action=nav.action, reason=nav.reason)
             return Decision(action="patrol_move", reason="route_follow")
         if state == FSMState.ENGAGE_CHECK:
             return Decision(action="face_target", reason="engage_validation")
@@ -186,6 +214,17 @@ class Orchestrator:
             return value
         return 8
 
+    @staticmethod
+    def _read_stuck_timeout_sec() -> float:
+        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+        nav_cfg = cfg.get("navigation")
+        if not isinstance(nav_cfg, dict):
+            return 6.0
+        value = nav_cfg.get("stuck_timeout_sec")
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+        return 6.0
+
     def _log_tick(self, inp: TickInput, result: TickResult) -> None:
         self._logger.write_tick(
             timestamp_ms=int(time.time() * 1000),
@@ -194,6 +233,7 @@ class Orchestrator:
             action=result.action,
             reason=result.reason,
             execution=result.execution,
+            navigation=result.navigation,
         )
 
 
@@ -227,29 +267,34 @@ def demo() -> None:
 
     timeline = [
         TickInput(),
-        TickInput(enemies_total_near=3, engage_confidence=0.7),
+        TickInput(enemies_total_near=3, engage_confidence=0.7, pos_x=2.0, pos_y=1.0),
         TickInput(
             enemies_total_near=5,
             enemies_in_front=4,
             engage_confidence=0.8,
             skill_cd={"1": 0.0, "2": 0.0, "3": 0.0, "4": 7.0},
+            pos_x=3.0,
+            pos_y=1.0,
         ),
         TickInput(
             enemies_total_near=2,
             enemies_in_front=0,
             skill_cd={"1": 5.0, "2": 7.0, "3": 0.0, "4": 6.0},
+            pos_x=3.0,
+            pos_y=1.0,
         ),
-        TickInput(combat_clear=True),
-        TickInput(),
+        TickInput(combat_clear=True, pos_x=34.0, pos_y=4.2),
+        TickInput(pos_x=35.1, pos_y=4.1),
     ]
 
     for idx, item in enumerate(timeline, start=1):
         result = orchestrator.tick(item)
+        wp = result.navigation.current_waypoint_id if result.navigation else "-"
         print(
             f"tick={idx} state={result.state.value} "
             f"action={result.action} reason={result.reason} "
             f"performed={result.execution.performed} "
-            f"exec_reason={result.execution.reason}"
+            f"exec_reason={result.execution.reason} wp={wp}"
         )
         time.sleep(0.05)
 
