@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 import sys
 import time
+from typing import Any
 
 # Bootstrap import path for local service development without packaging.
 _ROOT = Path(__file__).resolve().parents[4]
@@ -12,7 +13,12 @@ _COMBAT_SRC = _ROOT / "services" / "combat" / "src"
 if str(_COMBAT_SRC) not in sys.path:
     sys.path.insert(0, str(_COMBAT_SRC))
 
-from nztbdo_combat.selector import CombatSnapshot, Decision, default_selector
+_INPUT_SRC = _ROOT / "services" / "input-control" / "src"
+if str(_INPUT_SRC) not in sys.path:
+    sys.path.insert(0, str(_INPUT_SRC))
+
+from nztbdo_combat.selector import CombatSnapshot, Decision, load_selector_from_yaml
+from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
 
 
 class FSMState(str, Enum):
@@ -43,12 +49,15 @@ class TickResult:
     state: FSMState
     action: str
     reason: str
+    execution: ExecutionResult
 
 
 class Orchestrator:
     def __init__(self) -> None:
         self.state = FSMState.IDLE
-        self._combat_selector = default_selector()
+        skills_config = _ROOT / "shared" / "config" / "skills.yaml"
+        self._combat_selector = load_selector_from_yaml(skills_config)
+        self._executor = ActionExecutor(max_hz=self._read_action_rate_limit(), dry_run=True)
 
     def start(self) -> None:
         if self.state == FSMState.IDLE:
@@ -59,15 +68,33 @@ class Orchestrator:
 
         if inp.panic:
             self.state = FSMState.PANIC_STOP
-            return TickResult(state=self.state, action="panic_stop", reason="panic_hotkey")
+            action = "panic_stop"
+            return TickResult(
+                state=self.state,
+                action=action,
+                reason="panic_hotkey",
+                execution=self._executor.execute(action),
+            )
 
         if inp.paused and self.state != FSMState.PANIC_STOP:
             self.state = FSMState.PAUSED
-            return TickResult(state=self.state, action="pause", reason="pause_hotkey")
+            action = "pause"
+            return TickResult(
+                state=self.state,
+                action=action,
+                reason="pause_hotkey",
+                execution=self._executor.execute(action),
+            )
 
         if inp.stuck and self.state not in {FSMState.PANIC_STOP, FSMState.PAUSED}:
             self.state = FSMState.RECOVERY
-            return TickResult(state=self.state, action="recover", reason="stuck_detected")
+            action = "recover"
+            return TickResult(
+                state=self.state,
+                action=action,
+                reason="stuck_detected",
+                execution=self._executor.execute(action),
+            )
 
         if self.state == FSMState.PATROL:
             if inp.enemies_total_near > 0:
@@ -97,10 +124,22 @@ class Orchestrator:
                     skill_cd=cooldowns,
                 )
             )
-            return TickResult(state=self.state, action=decision.action, reason=decision.reason)
+            execution = self._executor.execute(decision.action)
+            return TickResult(
+                state=self.state,
+                action=decision.action,
+                reason=decision.reason,
+                execution=execution,
+            )
 
         decision = self._default_action_for_state(self.state)
-        return TickResult(state=self.state, action=decision.action, reason=decision.reason)
+        execution = self._executor.execute(decision.action)
+        return TickResult(
+            state=self.state,
+            action=decision.action,
+            reason=decision.reason,
+            execution=execution,
+        )
 
     @staticmethod
     def _default_action_for_state(state: FSMState) -> Decision:
@@ -119,6 +158,41 @@ class Orchestrator:
         if state == FSMState.PANIC_STOP:
             return Decision(action="panic_stop", reason="panic")
         return Decision(action="idle", reason="fallback")
+
+    @staticmethod
+    def _read_action_rate_limit() -> int:
+        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return 8
+        value = combat_cfg.get("action_rate_limit_hz")
+        if isinstance(value, int) and value > 0:
+            return value
+        return 8
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    try:
+        import yaml  # type: ignore
+    except ImportError:
+        return {}
+
+    if not path.exists():
+        return {}
+
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+
+    try:
+        loaded = yaml.safe_load(content)
+    except Exception:
+        return {}
+
+    if isinstance(loaded, dict):
+        return loaded
+    return {}
 
 
 def demo() -> None:
@@ -147,7 +221,9 @@ def demo() -> None:
         result = orchestrator.tick(item)
         print(
             f"tick={idx} state={result.state.value} "
-            f"action={result.action} reason={result.reason}"
+            f"action={result.action} reason={result.reason} "
+            f"performed={result.execution.performed} "
+            f"exec_reason={result.execution.reason}"
         )
         time.sleep(0.05)
 

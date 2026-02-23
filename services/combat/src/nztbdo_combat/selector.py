@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -115,3 +117,60 @@ def default_selector() -> CombatSelector:
             ),
         ]
     )
+
+
+def load_selector_from_yaml(path: str | Path) -> CombatSelector:
+    """Load selector skills from YAML config. Falls back to defaults on errors."""
+    data = _read_yaml(path)
+    if not data:
+        return default_selector()
+
+    raw_skills = data.get("skills")
+    if not isinstance(raw_skills, list):
+        return default_selector()
+
+    skills: list[Skill] = []
+    for item in raw_skills:
+        if not isinstance(item, dict):
+            continue
+        try:
+            skills.append(
+                Skill(
+                    skill_id=str(item["id"]),
+                    key=str(item["key"]),
+                    kind=str(item["kind"]),
+                    priority=int(item["priority"]),
+                    min_targets=int(item["min_targets"]),
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+
+    if not skills:
+        return default_selector()
+    return CombatSelector(skills=skills)
+
+
+def _read_yaml(path: str | Path) -> dict[str, Any]:
+    try:
+        import yaml  # type: ignore
+    except ImportError:
+        return {}
+
+    cfg_path = Path(path)
+    if not cfg_path.exists():
+        return {}
+
+    try:
+        content = cfg_path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+
+    try:
+        loaded = yaml.safe_load(content)
+    except Exception:
+        return {}
+
+    if isinstance(loaded, dict):
+        return loaded
+    return {}
