@@ -85,9 +85,16 @@ class Orchestrator:
         )
         self._perception_cfg = self._read_perception_cfg()
 
+    @property
+    def session_id(self) -> str:
+        return self._logger.session_id
+
     def start(self) -> None:
         if self.state == FSMState.IDLE:
             self.state = FSMState.PATROL
+
+    def stop(self) -> None:
+        self.state = FSMState.IDLE
 
     def tick(self, inp: TickInput) -> TickResult:
         cooldowns = inp.skill_cd or {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0}

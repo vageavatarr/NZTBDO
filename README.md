@@ -46,3 +46,15 @@ cd services/training
 $env:PYTHONPATH='src'
 python -m nztbdo_training.main --labels-root ../../data/labels --dataset-file ../../data/processed/dataset_v1.jsonl --metrics-file ../../data/processed/metrics_v1.json
 ```
+
+## Desktop UI (MVP)
+
+```powershell
+python apps/desktop-ui/main.py
+```
+
+Controls:
+- `F5` start/resume
+- `F6` pause
+- `F7` stop
+- `F12` panic stop
