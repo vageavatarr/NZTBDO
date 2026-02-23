@@ -302,6 +302,11 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         "actions": dict(actions),
         "execution_reasons": dict(execution_reasons),
         "perception_backend": loop.perception.backend,
+        "perception_requested_backend": loop.perception.requested_backend,
+        "perception_model_path": loop.perception.model_path,
+        "perception_model_exists": loop.perception.model_exists,
+        "perception_ultralytics_available": loop.perception.ultralytics_available,
+        "perception_init_reason": loop.perception.init_reason,
         "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
         "avg_tracks_per_tick": round(total_tracks / max(ticks, 1), 3),
         "window_guard_constraints": {

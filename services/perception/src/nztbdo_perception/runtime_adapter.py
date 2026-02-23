@@ -84,12 +84,17 @@ class RuntimePerceptionAdapter:
         max_targets: int = 8,
         enemy_class_ids: list[int] | None = None,
     ) -> None:
+        self._requested_backend = backend
+        self._model_path = model_path
         self._backend = "stub"
         self._confidence_min = confidence_min
         self._pixel_to_meter = pixel_to_meter
         self._max_targets = max_targets
         self._enemy_class_ids = set(enemy_class_ids or [])
         self._yolo_model: Any | None = None
+        self._ultralytics_available = False
+        self._model_exists = bool(model_path and Path(model_path).exists())
+        self._init_reason = "stub_default"
         self._tracker = WorldPointTracker()
         self._last_track_ids: list[int] = []
 
@@ -99,6 +104,26 @@ class RuntimePerceptionAdapter:
     @property
     def backend(self) -> str:
         return self._backend
+
+    @property
+    def requested_backend(self) -> str:
+        return self._requested_backend
+
+    @property
+    def model_path(self) -> str:
+        return self._model_path
+
+    @property
+    def ultralytics_available(self) -> bool:
+        return self._ultralytics_available
+
+    @property
+    def model_exists(self) -> bool:
+        return self._model_exists
+
+    @property
+    def init_reason(self) -> str:
+        return self._init_reason
 
     @property
     def last_track_ids(self) -> list[int]:
@@ -149,22 +174,28 @@ class RuntimePerceptionAdapter:
 
     def _try_init_yolo(self, model_path: str) -> None:
         if not model_path:
+            self._init_reason = "model_path_missing"
             return
         model_file = Path(model_path)
         if not model_file.exists():
+            self._init_reason = "model_file_not_found"
             return
 
         try:
             from ultralytics import YOLO  # type: ignore
         except ImportError:
+            self._init_reason = "ultralytics_not_installed"
             return
 
+        self._ultralytics_available = True
         try:
             self._yolo_model = YOLO(str(model_file))
             self._backend = "ultralytics"
+            self._init_reason = "ultralytics_ready"
         except Exception:
             self._yolo_model = None
             self._backend = "stub"
+            self._init_reason = "ultralytics_init_failed"
 
     def _detect_with_yolo(
         self,

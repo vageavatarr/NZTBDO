@@ -85,6 +85,14 @@ Runtime perception settings are configured in `shared/config/thresholds.yaml` un
 If `ultralytics` is available and `model_path` exists, YOLO backend is used; otherwise fallback stub is used.
 Runtime perception includes a tracking layer for stable target IDs across frames (`avg_tracks_per_tick` in runtime summary).
 
+Model readiness preflight:
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.model_preflight --profile live_farm
+```
+
 ## Full Session Pipeline (Runtime -> Labeling -> Training)
 
 ```powershell
