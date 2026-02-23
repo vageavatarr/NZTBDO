@@ -25,6 +25,6 @@ navigation:
 input_control:
   dry_run: false
   allowed_window_titles:
-    - GameWindow
+    - Black Desert
   allowed_process_names:
-    - game.exe
+    - BlackDesert64

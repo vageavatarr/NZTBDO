@@ -37,8 +37,8 @@ class FakeExecutor(ActionExecutor):
     def _get_foreground_window_title(self) -> str:
         return self._title
 
-    def _send_key_windows(self, key: str) -> bool:
-        return self._send_ok
+    def _send_key_windows(self, key: str) -> tuple[bool, str]:
+        return (self._send_ok, "fake")
 
 
 def test_window_allowlist_blocks_input() -> None:
