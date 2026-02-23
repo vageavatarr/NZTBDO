@@ -72,6 +72,7 @@ class CastVerifier:
                 continue
             with Image.open(p) as im:
                 arr = _to_gray(im)
+                arr = _focus_icon_region(arr)
             self._templates[template_id] = arr
             self._action_to_template[action] = template_id
             self._template_ids.append(template_id)
@@ -188,3 +189,14 @@ def _template_score(roi_arr: np.ndarray, frame_arr: np.ndarray, template_arr: np
     res = cv2.matchTemplate(source, template_arr, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv2.minMaxLoc(res)
     return max(0.0, min(1.0, float(max_val)))
+
+
+def _focus_icon_region(template_arr: np.ndarray) -> np.ndarray:
+    # Cast banners include long text that changes with locale/effects.
+    # Keep only left icon-heavy region for more stable matching.
+    h, w = template_arr.shape
+    left = 0
+    right = max(1, int(w * 0.26))
+    top = max(0, int(h * 0.15))
+    bottom = min(h, max(top + 1, int(h * 0.88)))
+    return template_arr[top:bottom, left:right]
