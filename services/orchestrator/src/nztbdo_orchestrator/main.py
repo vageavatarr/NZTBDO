@@ -18,6 +18,11 @@ if str(_INPUT_SRC) not in sys.path:
     sys.path.insert(0, str(_INPUT_SRC))
 
 from nztbdo_combat.selector import CombatSnapshot, Decision, load_selector_from_yaml
+_CAPTURE_SRC = _ROOT / "services" / "capture" / "src"
+if str(_CAPTURE_SRC) not in sys.path:
+    sys.path.insert(0, str(_CAPTURE_SRC))
+
+from nztbdo_capture.session_logger import SessionLogger
 from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
 
 
@@ -58,6 +63,7 @@ class Orchestrator:
         skills_config = _ROOT / "shared" / "config" / "skills.yaml"
         self._combat_selector = load_selector_from_yaml(skills_config)
         self._executor = ActionExecutor(max_hz=self._read_action_rate_limit(), dry_run=True)
+        self._logger = SessionLogger(_ROOT / "data" / "logs")
 
     def start(self) -> None:
         if self.state == FSMState.IDLE:
@@ -69,32 +75,38 @@ class Orchestrator:
         if inp.panic:
             self.state = FSMState.PANIC_STOP
             action = "panic_stop"
-            return TickResult(
+            result = TickResult(
                 state=self.state,
                 action=action,
                 reason="panic_hotkey",
                 execution=self._executor.execute(action),
             )
+            self._log_tick(inp, result)
+            return result
 
         if inp.paused and self.state != FSMState.PANIC_STOP:
             self.state = FSMState.PAUSED
             action = "pause"
-            return TickResult(
+            result = TickResult(
                 state=self.state,
                 action=action,
                 reason="pause_hotkey",
                 execution=self._executor.execute(action),
             )
+            self._log_tick(inp, result)
+            return result
 
         if inp.stuck and self.state not in {FSMState.PANIC_STOP, FSMState.PAUSED}:
             self.state = FSMState.RECOVERY
             action = "recover"
-            return TickResult(
+            result = TickResult(
                 state=self.state,
                 action=action,
                 reason="stuck_detected",
                 execution=self._executor.execute(action),
             )
+            self._log_tick(inp, result)
+            return result
 
         if self.state == FSMState.PATROL:
             if inp.enemies_total_near > 0:
@@ -125,21 +137,25 @@ class Orchestrator:
                 )
             )
             execution = self._executor.execute(decision.action)
-            return TickResult(
+            result = TickResult(
                 state=self.state,
                 action=decision.action,
                 reason=decision.reason,
                 execution=execution,
             )
+            self._log_tick(inp, result)
+            return result
 
         decision = self._default_action_for_state(self.state)
         execution = self._executor.execute(decision.action)
-        return TickResult(
+        result = TickResult(
             state=self.state,
             action=decision.action,
             reason=decision.reason,
             execution=execution,
         )
+        self._log_tick(inp, result)
+        return result
 
     @staticmethod
     def _default_action_for_state(state: FSMState) -> Decision:
@@ -169,6 +185,16 @@ class Orchestrator:
         if isinstance(value, int) and value > 0:
             return value
         return 8
+
+    def _log_tick(self, inp: TickInput, result: TickResult) -> None:
+        self._logger.write_tick(
+            timestamp_ms=int(time.time() * 1000),
+            fsm_state=result.state.value,
+            tick_input=inp,
+            action=result.action,
+            reason=result.reason,
+            execution=result.execution,
+        )
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

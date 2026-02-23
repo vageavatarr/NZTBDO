@@ -17,3 +17,5 @@ Automation framework for closed-loop farming with combat perception, FSM orchest
 cd services/orchestrator
 python -m nztbdo_orchestrator.main
 ```
+
+Runtime tick logs are written to `data/logs/<session_id>/events.jsonl`.
