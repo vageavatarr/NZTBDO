@@ -259,9 +259,17 @@ class RuntimeLoop:
         }
 
 
-def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) -> dict[str, Any]:
+def run(
+    profile_name: str,
+    ticks: int,
+    tick_sleep: float,
+    verbose: bool = True,
+    start_delay: float = 0.0,
+) -> dict[str, Any]:
     loop = RuntimeLoop(profile_name=profile_name)
     loop.start()
+    if start_delay > 0:
+        time.sleep(start_delay)
     states = Counter()
     actions = Counter()
     execution_reasons = Counter()

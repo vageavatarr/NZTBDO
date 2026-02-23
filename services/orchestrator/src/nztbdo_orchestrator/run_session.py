@@ -32,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile", default="default")
     parser.add_argument("--ticks", type=int, default=300)
     parser.add_argument("--tick-sleep", type=float, default=0.05)
+    parser.add_argument("--start-delay", type=float, default=0.0)
     parser.add_argument("--pre-ticks", type=int, default=2)
     parser.add_argument("--post-ticks", type=int, default=2)
     parser.add_argument("--labels-root", default=str(_ROOT / "data" / "labels"))
@@ -48,6 +49,7 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
         ticks=args.ticks,
         tick_sleep=args.tick_sleep,
         verbose=not args.quiet_runtime,
+        start_delay=args.start_delay,
     )
 
     events_path = Path(runtime_summary["events_path"])

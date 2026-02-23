@@ -117,6 +117,12 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.run_session --profile live_farm --ticks 300 --tick-sleep 0.05
 ```
 
+To give yourself time to focus the game window before runtime starts:
+
+```powershell
+python -m nztbdo_orchestrator.run_session --profile live_farm --ticks 300 --tick-sleep 0.05 --start-delay 5
+```
+
 Outputs:
 - runtime logs: `data/logs/<session_id>/events.jsonl`
 - runtime summary: `data/logs/<session_id>/runtime_summary.json`
