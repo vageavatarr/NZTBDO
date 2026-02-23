@@ -49,6 +49,14 @@ $env:PYTHONPATH='src'
 python -m nztbdo_labeling.main --logs-root ../../data/logs --labels-root ../../data/labels
 ```
 
+Generate per-second cooldown icon dataset from clean templates:
+
+```powershell
+cd services/labeling
+$env:PYTHONPATH='src'
+python -m nztbdo_labeling.generate_cooldown_icons --templates-config shared/config/cooldown_templates_live_farm.yaml --skills-config shared/config/skills.yaml --icons-dir data/raw/cooldown_icons/live_farm/clean --output-dir data/processed/cooldown_icons/live_farm/generated --labels-file data/processed/cooldown_icons/live_farm/labels.jsonl
+```
+
 ## Build Training Dataset + Offline Metrics
 
 ```powershell
