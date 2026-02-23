@@ -78,7 +78,8 @@ class CombatSelector:
                 continue
             if targets < skill.min_targets:
                 continue
-            if cooldowns.get(skill.key, 999.0) > 0:
+            # Prefer cooldown by stable skill id; fallback to key for older configs.
+            if cooldowns.get(skill.skill_id, cooldowns.get(skill.key, 999.0)) > 0:
                 continue
             ready.append(skill)
         return ready

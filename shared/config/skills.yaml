@@ -1,35 +1,45 @@
 version: 1
-class_profile: default
+class_profile: bdo_combo_v1
 skills:
-  - id: slash_front
-    key: "1"
-    kind: cone
-    cooldown_sec: 6.0
-    priority: 90
-    min_targets: 3
-    range_m: 6.0
-    angle_deg: 70
-
-  - id: whirlwind
-    key: "2"
+  - id: aoe_around_shift_q_q
+    key: "shift_q_q"
     kind: circle
     cooldown_sec: 10.0
-    priority: 80
+    priority: 100
     min_targets: 4
-    radius_m: 4.0
+    radius_m: 4.5
 
-  - id: strike
-    key: "3"
+  - id: front_hold_shift_rmb
+    key: "shift_rmb_hold"
+    kind: cone
+    cooldown_sec: 8.0
+    priority: 95
+    min_targets: 2
+    range_m: 5.0
+    angle_deg: 60
+
+  - id: front_shift_lmb
+    key: "shift_lmb"
+    kind: cone
+    cooldown_sec: 7.0
+    priority: 90
+    min_targets: 1
+    range_m: 4.0
+    angle_deg: 55
+
+  - id: front_long_shift_f
+    key: "shift_f"
+    kind: line
+    cooldown_sec: 8.0
+    priority: 85
+    min_targets: 1
+    range_m: 8.5
+    angle_deg: 25
+
+  - id: finisher_s_lmb
+    key: "s_lmb"
     kind: single
-    cooldown_sec: 4.0
+    cooldown_sec: 0.0
     priority: 70
     min_targets: 1
-    range_m: 5.0
-
-  - id: execute
-    key: "4"
-    kind: single
-    cooldown_sec: 12.0
-    priority: 60
-    min_targets: 1
-    range_m: 5.0
+    range_m: 2.0

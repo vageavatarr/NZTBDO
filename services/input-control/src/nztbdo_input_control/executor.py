@@ -47,8 +47,6 @@ class ActionExecutor:
 
     def _emit_key_action(self, action: str) -> ExecutionResult:
         key = action.removeprefix("press_")
-        if key not in {"1", "2", "3", "4"}:
-            return ExecutionResult(action=action, performed=False, reason="invalid_key")
 
         if not self._is_allowed_window():
             return ExecutionResult(action=action, performed=False, reason="window_not_allowed")
@@ -59,7 +57,7 @@ class ActionExecutor:
         if sys.platform != "win32":
             return ExecutionResult(action=action, performed=False, reason="unsupported_platform")
 
-        ok, fail_reason = self._send_key_windows(key)
+        ok, fail_reason = self._send_action_windows(key)
         if not ok:
             return ExecutionResult(action=action, performed=False, reason=fail_reason)
         return ExecutionResult(action=action, performed=True, reason="key_emit")
@@ -86,12 +84,130 @@ class ActionExecutor:
         user32.GetWindowTextW(hwnd, buffer, length + 1)
         return buffer.value
 
+    def _send_action_windows(self, key: str) -> tuple[bool, str]:
+        if key in {"1", "2", "3", "4"}:
+            return self._send_key_windows(key)
+        if key == "shift_q_q":
+            return self._send_shift_q_q()
+        if key == "shift_rmb_hold":
+            return self._send_shift_rmb_hold(hold_sec=2.5)
+        if key == "shift_lmb":
+            return self._send_shift_mouse_click(left=True)
+        if key == "shift_f":
+            return self._send_shift_key("f")
+        if key == "s_lmb":
+            return self._send_s_lmb()
+        return False, "invalid_key"
+
     def _send_key_windows(self, key: str) -> tuple[bool, str]:
         vk_map = {"1": 0x31, "2": 0x32, "3": 0x33, "4": 0x34}
         vk = vk_map.get(key)
         if vk is None:
             return False, "invalid_key"
+        return self._tap_key(vk)
 
+    def _send_shift_q_q(self) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        VK_SHIFT = 0x10
+        VK_Q = 0x51
+        try:
+            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            time.sleep(0.01)
+            ok1, _ = self._tap_key(VK_Q)
+            time.sleep(0.04)
+            ok2, _ = self._tap_key(VK_Q)
+            return (ok1 and ok2), "combo_shift_q_q"
+        except Exception:
+            return False, "combo_emit_failed"
+        finally:
+            try:
+                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+            except Exception:
+                pass
+
+    def _send_shift_rmb_hold(self, hold_sec: float) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        VK_SHIFT = 0x10
+        MOUSEEVENTF_RIGHTDOWN = 0x0008
+        MOUSEEVENTF_RIGHTUP = 0x0010
+        try:
+            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            time.sleep(0.01)
+            user32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
+            time.sleep(max(0.1, hold_sec))
+            user32.mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+            return True, "combo_shift_rmb_hold"
+        except Exception:
+            return False, "combo_emit_failed"
+        finally:
+            try:
+                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+            except Exception:
+                pass
+
+    def _send_shift_mouse_click(self, left: bool) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        VK_SHIFT = 0x10
+        down = 0x0002 if left else 0x0008
+        up = 0x0004 if left else 0x0010
+        reason = "combo_shift_lmb" if left else "combo_shift_rmb"
+        try:
+            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            time.sleep(0.01)
+            user32.mouse_event(down, 0, 0, 0, 0)
+            time.sleep(0.03)
+            user32.mouse_event(up, 0, 0, 0, 0)
+            return True, reason
+        except Exception:
+            return False, "combo_emit_failed"
+        finally:
+            try:
+                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+            except Exception:
+                pass
+
+    def _send_shift_key(self, key: str) -> tuple[bool, str]:
+        vk_map = {"f": 0x46}
+        vk = vk_map.get(key.lower())
+        if vk is None:
+            return False, "invalid_key"
+        user32 = ctypes.windll.user32
+        VK_SHIFT = 0x10
+        try:
+            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            time.sleep(0.01)
+            ok, _ = self._tap_key(vk)
+            return ok, "combo_shift_key"
+        except Exception:
+            return False, "combo_emit_failed"
+        finally:
+            try:
+                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+            except Exception:
+                pass
+
+    def _send_s_lmb(self) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        VK_S = 0x53
+        MOUSEEVENTF_LEFTDOWN = 0x0002
+        MOUSEEVENTF_LEFTUP = 0x0004
+        try:
+            user32.keybd_event(VK_S, 0, 0, 0)
+            time.sleep(0.01)
+            user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(0.03)
+            user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            return True, "combo_s_lmb"
+        except Exception:
+            return False, "combo_emit_failed"
+        finally:
+            try:
+                user32.keybd_event(VK_S, 0, 0x0002, 0)
+            except Exception:
+                pass
+
+    def _tap_key(self, vk: int) -> tuple[bool, str]:
+        
         # INPUT structures for SendInput (Windows API layout).
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [

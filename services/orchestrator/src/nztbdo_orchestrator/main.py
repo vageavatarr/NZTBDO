@@ -360,14 +360,26 @@ def demo() -> None:
         ),
         TickInput(
             engage_confidence=0.8,
-            skill_cd={"1": 0.0, "2": 0.0, "3": 0.0, "4": 7.0},
+            skill_cd={
+                "aoe_around_shift_q_q": 0.0,
+                "front_hold_shift_rmb": 0.0,
+                "front_shift_lmb": 0.0,
+                "front_long_shift_f": 7.0,
+                "finisher_s_lmb": 0.0,
+            },
             pos_x=3.0,
             pos_y=1.0,
             heading_deg=0.0,
             enemy_points=[(6.0, 1.0), (6.5, 2.0), (7.0, 0.8), (7.2, 1.2), (3.1, 8.0)],
         ),
         TickInput(
-            skill_cd={"1": 5.0, "2": 7.0, "3": 0.0, "4": 6.0},
+            skill_cd={
+                "aoe_around_shift_q_q": 5.0,
+                "front_hold_shift_rmb": 7.0,
+                "front_shift_lmb": 0.0,
+                "front_long_shift_f": 6.0,
+                "finisher_s_lmb": 0.0,
+            },
             pos_x=3.0,
             pos_y=1.0,
             heading_deg=0.0,

@@ -230,3 +230,10 @@ These rules are required for initial supervised labeling:
 - Camera direction is represented around the player marker on the minimap.
 - For heading-dependent features, prefer camera/minimap heading over character body orientation.
 - Character model may rotate independently while moving and does not reliably encode global heading.
+
+5. Combat combo profile (`bdo_combo_v1`):
+- `Shift+Q+Q`: AOE around character, cooldown 10s.
+- `Shift+RMB` hold 2.5s: short-range frontal double hit, cooldown 8s.
+- `Shift+LMB`: short-range frontal hit, cooldown 7s.
+- `Shift+F`: long-range frontal hit, cooldown 8s.
+- `S+LMB`: short-range finisher, no cooldown, very small radius (1-2 targets).

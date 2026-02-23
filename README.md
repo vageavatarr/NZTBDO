@@ -160,6 +160,13 @@ For live profile, update placeholders in `shared/config/thresholds_live_farm.yam
 - `allowed_window_titles: ["GameWindow"]`
 - `allowed_process_names: ["game.exe"]`
 
+Current combo actions supported by executor:
+- `press_shift_q_q`
+- `press_shift_rmb_hold` (2.5s hold)
+- `press_shift_lmb`
+- `press_shift_f`
+- `press_s_lmb`
+
 ## Capture Demo (Chunked Telemetry)
 
 ```powershell

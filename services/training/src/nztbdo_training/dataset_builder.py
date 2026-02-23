@@ -71,6 +71,11 @@ def _to_flat_row(row: dict[str, Any]) -> dict[str, Any]:
         "action_press_2": actions.get("press_2", 0),
         "action_press_3": actions.get("press_3", 0),
         "action_press_4": actions.get("press_4", 0),
+        "action_press_shift_q_q": actions.get("press_shift_q_q", 0),
+        "action_press_shift_rmb_hold": actions.get("press_shift_rmb_hold", 0),
+        "action_press_shift_lmb": actions.get("press_shift_lmb", 0),
+        "action_press_shift_f": actions.get("press_shift_f", 0),
+        "action_press_s_lmb": actions.get("press_s_lmb", 0),
         "first_engage_confidence": first_input.get("engage_confidence", 0.0),
         "last_engage_confidence": last_input.get("engage_confidence", 0.0),
     }

@@ -226,10 +226,11 @@ class RuntimeLoop:
             engage_confidence=0.78 if has_enemies else 0.0,
             combat_clear=combat_clear,
             skill_cd={
-                "1": 0.0 if self.tick_index % 3 == 0 else 2.0,
-                "2": 0.0 if self.tick_index % 5 == 0 else 4.0,
-                "3": 0.0,
-                "4": 0.0 if self.tick_index % 9 == 0 else 9.0,
+                "aoe_around_shift_q_q": 0.0 if self.tick_index % 12 == 0 else 6.0,
+                "front_hold_shift_rmb": 0.0 if self.tick_index % 8 == 0 else 3.0,
+                "front_shift_lmb": 0.0 if self.tick_index % 7 == 0 else 2.5,
+                "front_long_shift_f": 0.0 if self.tick_index % 9 == 0 else 4.0,
+                "finisher_s_lmb": 0.0,
             },
         )
         result = self.orchestrator.tick(tick_input)
@@ -306,8 +307,6 @@ class RuntimeLoop:
         if not action.startswith("press_"):
             return
         key = action.removeprefix("press_")
-        if key not in {"1", "2", "3", "4"}:
-            return
 
         # Store attempt in session events, including blocked/rate-limited reasons.
         self.orchestrator.write_runtime_event(
@@ -327,8 +326,7 @@ class RuntimeLoop:
 
         # Store low-level key down/up events when emission actually happened.
         if result.execution.performed:
-            self._telemetry.record_keyboard(key=key, event_type="down")
-            self._telemetry.record_keyboard(key=key, event_type="up")
+            self._telemetry.record_keyboard(key=key, event_type="command")
             self._keyboard_actions_logged += 1
 
 

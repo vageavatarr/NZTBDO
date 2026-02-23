@@ -207,6 +207,13 @@ Primary visual priors (from live gameplay):
   - `aggro_exclamation_near_count`,
   - `aggro_exclamation_front_count`.
 
+Current combat input profile (`bdo_combo_v1`):
+- `press_shift_q_q` -> AOE around self, 10s CD
+- `press_shift_rmb_hold` -> frontal short-range, hold 2.5s, 8s CD
+- `press_shift_lmb` -> frontal short-range, 7s CD
+- `press_shift_f` -> frontal long-range, 8s CD
+- `press_s_lmb` -> frontal finisher, no CD
+
 ---
 
 ## 8) Auto-Labeling Strategy
