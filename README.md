@@ -125,6 +125,14 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.suggest_threshold_patch --profile live_farm --write-patch ../../data/logs/latest_thresholds_suggestion.patch
 ```
 
+Roadmap milestone status check (Perception v1 + long-run validation):
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.milestone_status
+```
+
 ## Full Session Pipeline (Runtime -> Labeling -> Training)
 
 ```powershell
