@@ -32,6 +32,6 @@ templates:
 roi:
   mode: skill_cast_notification
   x_norm: 0.50
-  y_norm: 0.80
-  width_norm: 0.40
-  height_norm: 0.18
+  y_norm: 0.74
+  width_norm: 0.70
+  height_norm: 0.42

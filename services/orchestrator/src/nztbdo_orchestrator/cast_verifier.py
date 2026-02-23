@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import cv2
 
 
 @dataclass(frozen=True)
@@ -70,7 +71,7 @@ class CastVerifier:
             if not p.exists():
                 continue
             with Image.open(p) as im:
-                arr = _prepare_array(im)
+                arr = _to_gray(im)
             self._templates[template_id] = arr
             self._action_to_template[action] = template_id
             self._template_ids.append(template_id)
@@ -106,21 +107,25 @@ class CastVerifier:
             return None
 
         with Image.open(frame_path) as frame:
-            crop = _crop_by_norm(frame, self._roi)
-            crop_arr = _prepare_array(crop)
+            frame_arr = _to_gray(frame)
+            roi_img = _crop_by_norm(frame, self._roi)
+            roi_arr = _to_gray(roi_img)
             crop_out_path.parent.mkdir(parents=True, exist_ok=True)
-            crop.save(crop_out_path)
+            roi_img.save(crop_out_path)
 
-        expected_score = _score(crop_arr, self._templates.get(expected, crop_arr))
+        expected_template = self._templates.get(expected)
+        if expected_template is None:
+            return None
+        expected_score = _template_score(roi_arr, frame_arr, expected_template)
         best_template = expected
         best_score = expected_score
         for template_id in self._template_ids:
-            score = _score(crop_arr, self._templates[template_id])
+            score = _template_score(roi_arr, frame_arr, self._templates[template_id])
             if score > best_score:
                 best_score = score
                 best_template = template_id
 
-        detected = expected_score >= threshold
+        detected = expected_score >= threshold and (best_template == expected or (best_score - expected_score) <= 0.02)
         return CastVerification(
             action=action,
             expected_template_id=expected,
@@ -164,54 +169,22 @@ def _crop_by_norm(image: Any, roi: dict[str, float]) -> Any:
     return image.crop((left, top, right, bottom))
 
 
-def _prepare_array(image: Any) -> np.ndarray:
-    arr = np.asarray(image.convert("L"), dtype=np.float32)
-    # Fixed size makes template/frame comparisons stable across resolutions.
-    try:
-        from PIL import Image
-
-        im = Image.fromarray(arr.astype(np.uint8), mode="L").resize((256, 128))
-        arr = np.asarray(im, dtype=np.float32)
-    except Exception:
-        pass
+def _to_gray(image: Any) -> np.ndarray:
+    arr = np.asarray(image.convert("L"), dtype=np.uint8)
     return arr
 
 
-def _score(frame_arr: np.ndarray, template_arr: np.ndarray) -> float:
-    a = _normalize(frame_arr)
-    b = _normalize(template_arr)
-    lum = _corr(a, b)
-    edge_a = _edge(a)
-    edge_b = _edge(b)
-    edge = _corr(edge_a, edge_b)
-    # Edge correlation is weighted higher because cast text effects flicker in brightness.
-    return float((0.4 * lum) + (0.6 * edge))
-
-
-def _normalize(arr: np.ndarray) -> np.ndarray:
-    if arr.shape != (256, 128):
-        try:
-            from PIL import Image
-
-            im = Image.fromarray(arr.astype(np.uint8), mode="L").resize((256, 128))
-            arr = np.asarray(im, dtype=np.float32)
-        except Exception:
-            arr = arr.astype(np.float32)
-    return arr
-
-
-def _edge(arr: np.ndarray) -> np.ndarray:
-    gx = np.abs(arr - np.roll(arr, 1, axis=1))
-    gy = np.abs(arr - np.roll(arr, 1, axis=0))
-    return gx + gy
-
-
-def _corr(a: np.ndarray, b: np.ndarray) -> float:
-    x = a - float(np.mean(a))
-    y = b - float(np.mean(b))
-    denom = float(np.sqrt((x * x).sum()) * np.sqrt((y * y).sum()))
-    if denom <= 1e-9:
-        return 0.0
-    raw = float((x * y).sum() / denom)
-    # map [-1, 1] -> [0, 1]
-    return max(0.0, min(1.0, (raw + 1.0) / 2.0))
+def _template_score(roi_arr: np.ndarray, frame_arr: np.ndarray, template_arr: np.ndarray) -> float:
+    # Prefer ROI for speed and fewer false positives; fallback to full frame
+    # if template does not fit ROI.
+    source = roi_arr
+    th, tw = template_arr.shape
+    sh, sw = source.shape
+    if th > sh or tw > sw:
+        source = frame_arr
+        sh, sw = source.shape
+        if th > sh or tw > sw:
+            return 0.0
+    res = cv2.matchTemplate(source, template_arr, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, _ = cv2.minMaxLoc(res)
+    return max(0.0, min(1.0, float(max_val)))

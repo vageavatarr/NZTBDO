@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--step-delay", type=float, default=0.5)
     parser.add_argument("--cast-delay", type=float, default=0.45)
-    parser.add_argument("--cast-threshold", type=float, default=0.58)
+    parser.add_argument("--cast-threshold", type=float, default=0.22)
     parser.add_argument("--cast-verify", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
