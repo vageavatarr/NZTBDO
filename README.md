@@ -86,3 +86,5 @@ cd services/capture
 $env:PYTHONPATH='src'
 python -m nztbdo_capture.demo_capture
 ```
+
+Screen capture is taken from the primary monitor only.
