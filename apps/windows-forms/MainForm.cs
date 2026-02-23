@@ -11,6 +11,8 @@ public sealed class MainForm : Form
     private readonly Label _eventsValue = new() { AutoSize = true, Text = "0" };
     private readonly Label _pausedValue = new() { AutoSize = true, Text = "0" };
     private readonly Label _guardValue = new() { AutoSize = true, Text = "0" };
+    private readonly Label _writingValue = new() { AutoSize = true, Text = "-" };
+    private readonly Label _lastEventAgeValue = new() { AutoSize = true, Text = "-" };
     private readonly Label _pidValue = new() { AutoSize = true, Text = "-" };
     private readonly TextBox _outputBox = new()
     {
@@ -31,6 +33,7 @@ public sealed class MainForm : Form
     private string? _activeSessionDir;
     private HashSet<string> _knownSessionIds = new(StringComparer.OrdinalIgnoreCase);
     private string? _lastEventsReadError;
+    private DateTime _lastEventsWriteUtc = DateTime.MinValue;
 
     public MainForm()
     {
@@ -53,7 +56,7 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 9,
+            RowCount = 11,
             Padding = new Padding(14),
             AutoSize = true
         };
@@ -66,7 +69,9 @@ public sealed class MainForm : Form
         AddRow(panel, 3, "Events", _eventsValue);
         AddRow(panel, 4, "Paused Ticks", _pausedValue);
         AddRow(panel, 5, "Guard Blocked", _guardValue);
-        AddRow(panel, 6, "Process PID", _pidValue);
+        AddRow(panel, 6, "Writing", _writingValue);
+        AddRow(panel, 7, "Last Event Age", _lastEventAgeValue);
+        AddRow(panel, 8, "Process PID", _pidValue);
 
         var buttonsPanel = new FlowLayoutPanel
         {
@@ -75,11 +80,11 @@ public sealed class MainForm : Form
         };
         buttonsPanel.Controls.Add(_startButton);
         buttonsPanel.Controls.Add(_stopButton);
-        panel.Controls.Add(new Label { Text = "Control", AutoSize = true }, 0, 7);
-        panel.Controls.Add(buttonsPanel, 1, 7);
+        panel.Controls.Add(new Label { Text = "Control", AutoSize = true }, 0, 9);
+        panel.Controls.Add(buttonsPanel, 1, 9);
 
-        panel.Controls.Add(new Label { Text = "Output", AutoSize = true }, 0, 8);
-        panel.Controls.Add(new Label { Text = "JSON summary at end of run", AutoSize = true }, 1, 8);
+        panel.Controls.Add(new Label { Text = "Output", AutoSize = true }, 0, 10);
+        panel.Controls.Add(new Label { Text = "JSON summary at end of run", AutoSize = true }, 1, 10);
 
         Controls.Add(panel);
         Controls.Add(_outputBox);
@@ -160,6 +165,7 @@ public sealed class MainForm : Form
         _activeSessionDir = null;
         _knownSessionIds = LoadSessionIds(Path.Combine(_repoRoot, "data", "logs"));
         _lastEventsReadError = null;
+        _lastEventsWriteUtc = DateTime.MinValue;
 
         _statusValue.Text = "Running";
         _pidValue.Text = _process.Id.ToString();
@@ -200,6 +206,7 @@ public sealed class MainForm : Form
         _process = null;
         _activeSessionDir = null;
         _knownSessionIds.Clear();
+        _lastEventsWriteUtc = DateTime.MinValue;
         _uiTimer.Start();
         RefreshUi();
     }
@@ -227,6 +234,8 @@ public sealed class MainForm : Form
         _sessionValue.Text = sessionDir is null ? "-" : Path.GetFileName(sessionDir);
         if (sessionDir is null)
         {
+            _writingValue.Text = "No";
+            _lastEventAgeValue.Text = "-";
             return;
         }
 
@@ -236,6 +245,8 @@ public sealed class MainForm : Form
             _eventsValue.Text = "0";
             _pausedValue.Text = "0";
             _guardValue.Text = "0";
+            _writingValue.Text = "No";
+            _lastEventAgeValue.Text = "-";
             return;
         }
 
@@ -245,6 +256,10 @@ public sealed class MainForm : Form
             _eventsValue.Text = stats.total.ToString();
             _pausedValue.Text = stats.paused.ToString();
             _guardValue.Text = stats.guardBlocked.ToString();
+            _lastEventsWriteUtc = File.GetLastWriteTimeUtc(eventsFile);
+            var idleSeconds = Math.Max(0, (DateTime.UtcNow - _lastEventsWriteUtc).TotalSeconds);
+            _lastEventAgeValue.Text = $"{idleSeconds:0.0}s";
+            _writingValue.Text = idleSeconds <= 2.5 ? "Yes" : "No";
             _lastEventsReadError = null;
         }
         catch (Exception ex)
@@ -252,6 +267,8 @@ public sealed class MainForm : Form
             _eventsValue.Text = "0";
             _pausedValue.Text = "0";
             _guardValue.Text = "0";
+            _writingValue.Text = "No";
+            _lastEventAgeValue.Text = "-";
             if (!string.Equals(_lastEventsReadError, ex.Message, StringComparison.Ordinal))
             {
                 _lastEventsReadError = ex.Message;
