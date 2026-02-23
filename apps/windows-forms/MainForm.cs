@@ -43,6 +43,7 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _uiTimer = new() { Interval = 1000 };
     private Process? _process;
     private DateTime _startedAtUtc;
+    private DateTime _lastF5HandledUtc = DateTime.MinValue;
     private string? _repoRoot;
     private string? _activeSessionDir;
     private HashSet<string> _knownSessionIds = new(StringComparer.OrdinalIgnoreCase);
@@ -258,6 +259,14 @@ public sealed class MainForm : Form
 
     private void ToggleStartStopByHotkey()
     {
+        var now = DateTime.UtcNow;
+        // RegisterHotKey may auto-repeat while F5 is held; ignore fast repeats.
+        if ((now - _lastF5HandledUtc).TotalMilliseconds < 700)
+        {
+            return;
+        }
+        _lastF5HandledUtc = now;
+
         if (_process is not null)
         {
             StopSession();
