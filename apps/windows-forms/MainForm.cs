@@ -41,6 +41,8 @@ public sealed class MainForm : Form
         _repoRoot = FindRepoRoot();
         BuildLayout();
         BindEvents();
+        _uiTimer.Start();
+        RefreshUi();
     }
 
     private void BuildLayout()
@@ -106,7 +108,7 @@ public sealed class MainForm : Form
         var psi = new ProcessStartInfo
         {
             FileName = "python",
-            Arguments = "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 12000 --tick-sleep 0.05 --start-delay 8 --quiet-runtime",
+            Arguments = "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 12000 --tick-sleep 0.05 --start-delay 2 --quiet-runtime",
             WorkingDirectory = workingDir,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -139,7 +141,17 @@ public sealed class MainForm : Form
             }
         };
 
-        _process.Start();
+        try
+        {
+            _process.Start();
+        }
+        catch (Exception ex)
+        {
+            AppendOutput("[ERR] Failed to start session: " + ex.Message);
+            _process.Dispose();
+            _process = null;
+            return;
+        }
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
         _startedAtUtc = DateTime.UtcNow;
@@ -149,6 +161,7 @@ public sealed class MainForm : Form
         _startButton.Enabled = false;
         _stopButton.Enabled = true;
         _uiTimer.Start();
+        RefreshUi();
     }
 
     private void StopSession()
@@ -173,7 +186,6 @@ public sealed class MainForm : Form
 
     private void OnProcessExited()
     {
-        _uiTimer.Stop();
         _statusValue.Text = "Stopped";
         _startButton.Enabled = true;
         _stopButton.Enabled = false;
@@ -181,6 +193,7 @@ public sealed class MainForm : Form
 
         _process?.Dispose();
         _process = null;
+        _uiTimer.Start();
         RefreshUi();
     }
 
@@ -191,9 +204,14 @@ public sealed class MainForm : Form
             var elapsed = DateTime.UtcNow - _startedAtUtc;
             _elapsedValue.Text = elapsed.ToString(@"hh\:mm\:ss");
         }
+        else
+        {
+            _elapsedValue.Text = "00:00:00";
+        }
 
         if (_repoRoot is null)
         {
+            _statusValue.Text = "Repo not found";
             return;
         }
 
@@ -250,9 +268,23 @@ public sealed class MainForm : Form
         {
             return null;
         }
-        return dir.GetDirectories()
-            .OrderByDescending(d => d.LastWriteTimeUtc)
-            .FirstOrDefault();
+
+        DirectoryInfo? best = null;
+        DateTime bestWrite = DateTime.MinValue;
+        foreach (var sessionDir in dir.GetDirectories())
+        {
+            var eventsFile = Path.Combine(sessionDir.FullName, "events.jsonl");
+            var writeTime = File.Exists(eventsFile)
+                ? File.GetLastWriteTimeUtc(eventsFile)
+                : sessionDir.LastWriteTimeUtc;
+            if (writeTime > bestWrite)
+            {
+                bestWrite = writeTime;
+                best = sessionDir;
+            }
+        }
+
+        return best;
     }
 
     private static string? FindRepoRoot()
