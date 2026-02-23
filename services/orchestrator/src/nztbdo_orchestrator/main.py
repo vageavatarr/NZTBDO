@@ -78,7 +78,12 @@ class Orchestrator:
         self._cfg = load_profile_config(_ROOT, profile_name)
         self.state = FSMState.IDLE
         self._combat_selector = load_selector_from_yaml(self._cfg.skills_path)
-        self._executor = ActionExecutor(max_hz=self._read_action_rate_limit(), dry_run=True)
+        input_cfg = self._read_input_control_cfg()
+        self._executor = ActionExecutor(
+            max_hz=self._read_action_rate_limit(),
+            dry_run=input_cfg["dry_run"],
+            allowed_window_substrings=input_cfg["allowed_window_titles"],
+        )
         self._logger = SessionLogger(_ROOT / "data" / "logs")
         self._nav_runner = load_route_runner_from_yaml(
             self._cfg.route_path,
@@ -265,6 +270,19 @@ class Orchestrator:
             "front_cone_angle_deg": float(angle),
             "front_cone_range_m": float(rng),
         }
+
+    def _read_input_control_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self._cfg.thresholds_path)
+        input_cfg = cfg.get("input_control")
+        if not isinstance(input_cfg, dict):
+            return {"dry_run": True, "allowed_window_titles": []}
+
+        dry_run = input_cfg.get("dry_run", True)
+        allowed = input_cfg.get("allowed_window_titles", [])
+        if not isinstance(allowed, list):
+            allowed = []
+        allowed_clean = [str(item) for item in allowed if str(item).strip()]
+        return {"dry_run": bool(dry_run), "allowed_window_titles": allowed_clean}
 
     def _resolve_enemy_features(self, inp: TickInput) -> tuple[int, int]:
         if not inp.enemy_points:

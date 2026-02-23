@@ -71,6 +71,14 @@ Controls:
 
 The UI includes a profile selector populated from `shared/config/profiles/*.yaml`.
 
+## Real Input Mode (Windows)
+
+`services/input-control` now supports real key emission (`1-4`) via `SendInput`.
+
+Configure in `shared/config/thresholds.yaml`:
+- `input_control.dry_run: false` to enable real key presses
+- `input_control.allowed_window_titles: [...]` to restrict key emission to target window titles
+
 ## Capture Demo (Chunked Telemetry)
 
 ```powershell

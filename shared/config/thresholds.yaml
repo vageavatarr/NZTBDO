@@ -14,3 +14,7 @@ combat:
 navigation:
   stuck_timeout_sec: 6.0
   waypoint_reacquire_max_m: 20.0
+
+input_control:
+  dry_run: true
+  allowed_window_titles: []
