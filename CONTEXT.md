@@ -224,3 +224,9 @@ These rules are required for initial supervised labeling:
   - enemies with yellow exclamation marks near player,
   - enemies with yellow exclamation marks in front cone.
 - Use these counts as primary labels for early combat policy data.
+
+4. Orientation source for navigation/combat geometry:
+- Minimap is located at the top-right area of the screen.
+- Camera direction is represented around the player marker on the minimap.
+- For heading-dependent features, prefer camera/minimap heading over character body orientation.
+- Character model may rotate independently while moving and does not reliably encode global heading.

@@ -201,6 +201,8 @@ Data quality rules:
 Primary visual priors (from live gameplay):
 - yellow exclamation mark above monster == engaged/aggro candidate,
 - controlled player is anchored near screen center and identified by two bars above the character.
+- minimap at top-right is the primary source of camera heading.
+- heading for front-cone calculations must be camera/minimap-based, not character model facing.
 - early dataset labeling should explicitly store:
   - `aggro_exclamation_near_count`,
   - `aggro_exclamation_front_count`.
