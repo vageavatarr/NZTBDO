@@ -58,3 +58,11 @@ Controls:
 - `F6` pause
 - `F7` stop
 - `F12` panic stop
+
+## Capture Demo (Chunked Telemetry)
+
+```powershell
+cd services/capture
+$env:PYTHONPATH='src'
+python -m nztbdo_capture.demo_capture
+```

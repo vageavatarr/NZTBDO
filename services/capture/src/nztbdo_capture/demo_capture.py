@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from nztbdo_capture.input_recorder import InputTelemetryRecorder
+
+
+def main() -> None:
+    root = Path(__file__).resolve().parents[4]
+    out_dir = root / "data" / "raw" / "demo_capture"
+    recorder = InputTelemetryRecorder(str(out_dir), chunk_size=5)
+
+    for idx in range(12):
+        recorder.record_window(
+            title="GameWindow",
+            process="game.exe",
+            rect={"x": 100, "y": 100, "w": 1280, "h": 720},
+        )
+        recorder.record_keyboard(key=str((idx % 4) + 1), event_type="down")
+        recorder.record_mouse(x=600 + idx, y=400 + idx, button="left", event_type="move")
+        recorder.record_frame_meta(
+            frame_id=f"frame_{idx:04d}",
+            width=1280,
+            height=720,
+            path=f"frames/frame_{idx:04d}.png",
+        )
+
+    recorder.close()
+    print(f"capture_written={out_dir}")
+
+
+if __name__ == "__main__":
+    main()
