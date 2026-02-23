@@ -207,6 +207,8 @@ class ActionExecutor:
             return self._send_shift_key("f")
         if key == "s_lmb":
             return self._send_s_lmb()
+        if key == "lmb":
+            return self._send_lmb()
         return False, "invalid_key"
 
     def _send_action_background(self, hwnd: int, key: str) -> tuple[bool, str]:
@@ -232,6 +234,8 @@ class ActionExecutor:
             return self._post_shift_key(hwnd, 0x46, reason="bg_shift_f")
         if key == "s_lmb":
             return self._post_s_lmb(hwnd, reason="bg_s_lmb")
+        if key == "lmb":
+            return self._post_lmb(hwnd, reason="bg_lmb")
         return False, "invalid_key"
 
     def _send_key_windows(self, key: str) -> tuple[bool, str]:
@@ -354,6 +358,18 @@ class ActionExecutor:
                 user32.keybd_event(VK_S, 0, 0x0002, 0)
             except Exception:
                 pass
+
+    def _send_lmb(self) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        MOUSEEVENTF_LEFTDOWN = 0x0002
+        MOUSEEVENTF_LEFTUP = 0x0004
+        try:
+            user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(0.03)
+            user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            return True, "combo_lmb"
+        except Exception:
+            return False, "combo_emit_failed"
 
     def _tap_key(self, vk: int) -> tuple[bool, str]:
         MAPVK_VK_TO_VSC = 0
@@ -528,4 +544,13 @@ class ActionExecutor:
         time.sleep(0.02)
         ok = ok and user32.PostMessageW(hwnd, WM_LBUTTONUP, 0, 0)
         ok = ok and user32.PostMessageW(hwnd, WM_KEYUP, VK_S, 0)
+        return (ok != 0), reason
+
+    def _post_lmb(self, hwnd: int, reason: str) -> tuple[bool, str]:
+        user32 = ctypes.windll.user32
+        WM_LBUTTONDOWN = 0x0201
+        WM_LBUTTONUP = 0x0202
+        ok = user32.PostMessageW(hwnd, WM_LBUTTONDOWN, 0, 0)
+        time.sleep(0.02)
+        ok = ok and user32.PostMessageW(hwnd, WM_LBUTTONUP, 0, 0)
         return (ok != 0), reason

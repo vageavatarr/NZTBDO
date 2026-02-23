@@ -214,6 +214,7 @@ Current combat input profile (`bdo_combo_v1`):
 - `press_shift_lmb` -> frontal short-range, 7s CD
 - `press_shift_f` -> frontal long-range, 8s CD
 - `press_s_lmb` -> frontal finisher, no CD
+- `press_lmb` -> separate basic hit, no CD (distinct from `press_s_lmb`)
 
 Enemy visual signature for primary labeling:
 - pale/stone-like humanoid silhouette,

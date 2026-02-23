@@ -12,6 +12,7 @@ class Skill:
     kind: str
     priority: int
     min_targets: int
+    max_targets: int = 999
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,8 @@ class CombatSelector:
                 continue
             if targets < skill.min_targets:
                 continue
+            if targets > skill.max_targets:
+                continue
             # Prefer cooldown by stable skill id; fallback to key for older configs.
             if cooldowns.get(skill.skill_id, cooldowns.get(skill.key, 999.0)) > 0:
                 continue
@@ -94,6 +97,7 @@ def default_selector() -> CombatSelector:
                 kind="cone",
                 priority=90,
                 min_targets=3,
+                max_targets=999,
             ),
             Skill(
                 skill_id="whirlwind",
@@ -101,6 +105,7 @@ def default_selector() -> CombatSelector:
                 kind="circle",
                 priority=80,
                 min_targets=4,
+                max_targets=999,
             ),
             Skill(
                 skill_id="strike",
@@ -108,6 +113,7 @@ def default_selector() -> CombatSelector:
                 kind="single",
                 priority=70,
                 min_targets=1,
+                max_targets=999,
             ),
             Skill(
                 skill_id="execute",
@@ -115,6 +121,7 @@ def default_selector() -> CombatSelector:
                 kind="single",
                 priority=60,
                 min_targets=1,
+                max_targets=999,
             ),
         ]
     )
@@ -142,6 +149,7 @@ def load_selector_from_yaml(path: str | Path) -> CombatSelector:
                     kind=str(item["kind"]),
                     priority=int(item["priority"]),
                     min_targets=int(item["min_targets"]),
+                    max_targets=int(item.get("max_targets", 999)),
                 )
             )
         except (KeyError, TypeError, ValueError):

@@ -39,6 +39,7 @@ def generate_tick(idx: int) -> TickInput:
                 "front_shift_lmb": 0.0,
                 "front_long_shift_f": 0.0,
                 "finisher_s_lmb": 0.0,
+                "basic_lmb": 0.0,
             },
         )
 
@@ -57,6 +58,7 @@ def generate_tick(idx: int) -> TickInput:
             "front_shift_lmb": 0.0 if idx % 7 == 0 else 2.0,
             "front_long_shift_f": 0.0 if idx % 9 == 0 else 4.0,
             "finisher_s_lmb": 0.0,
+            "basic_lmb": 0.0,
         },
     )
 
