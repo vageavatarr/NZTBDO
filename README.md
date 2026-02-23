@@ -114,6 +114,7 @@ Outputs:
 - runtime summary: `data/logs/<session_id>/runtime_summary.json`
 - session pipeline summary: `data/logs/<session_id>/session_pipeline_summary.json`
 - regression report: `data/logs/<session_id>/regression_report.json`
+- calibration report: `data/logs/<session_id>/calibration_report.json`
 - labels: `data/labels/<session_id>/episodes.jsonl`
 - dataset: `data/processed/dataset_v1.jsonl`
 - metrics: `data/processed/metrics_v1.json`

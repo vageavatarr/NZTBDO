@@ -97,6 +97,8 @@ class RuntimePerceptionAdapter:
         self._init_reason = "stub_default"
         self._tracker = WorldPointTracker()
         self._last_track_ids: list[int] = []
+        self._last_confidences: list[float] = []
+        self._last_class_ids: list[int] = []
 
         if backend in {"auto", "ultralytics"}:
             self._try_init_yolo(model_path)
@@ -129,6 +131,14 @@ class RuntimePerceptionAdapter:
     def last_track_ids(self) -> list[int]:
         return list(self._last_track_ids)
 
+    @property
+    def last_confidences(self) -> list[float]:
+        return list(self._last_confidences)
+
+    @property
+    def last_class_ids(self) -> list[int]:
+        return list(self._last_class_ids)
+
     def detect_enemy_points(
         self,
         *,
@@ -141,17 +151,25 @@ class RuntimePerceptionAdapter:
             return []
 
         raw_points: list[tuple[float, float]]
+        confidences: list[float]
+        class_ids: list[int]
         if self._yolo_model is not None:
-            yolo_points = self._detect_with_yolo(path, player_x, player_y)
-            if yolo_points is not None:
-                raw_points = yolo_points
+            yolo_result = self._detect_with_yolo(path, player_x, player_y)
+            if yolo_result is not None:
+                raw_points, confidences, class_ids = yolo_result
             else:
                 raw_points = self._detect_with_stub(path, player_x, player_y)
+                confidences = [1.0] * len(raw_points)
+                class_ids = [-1] * len(raw_points)
         else:
             raw_points = self._detect_with_stub(path, player_x, player_y)
+            confidences = [1.0] * len(raw_points)
+            class_ids = [-1] * len(raw_points)
 
         tracks = self._tracker.update(raw_points)
         self._last_track_ids = [item.track_id for item in tracks]
+        self._last_confidences = confidences[: self._max_targets]
+        self._last_class_ids = class_ids[: self._max_targets]
         return [(item.x, item.y) for item in tracks]
 
     def _detect_with_stub(
@@ -202,7 +220,7 @@ class RuntimePerceptionAdapter:
         frame_path: Path,
         player_x: float,
         player_y: float,
-    ) -> list[tuple[float, float]] | None:
+    ) -> tuple[list[tuple[float, float]], list[float], list[int]] | None:
         if self._yolo_model is None:
             return None
         try:
@@ -229,7 +247,7 @@ class RuntimePerceptionAdapter:
         except Exception:
             return []
 
-        items: list[tuple[float, float, float]] = []
+        items: list[tuple[float, int, float, float]] = []
         for box in boxes:
             try:
                 conf = float(box.conf[0].item())
@@ -256,11 +274,14 @@ class RuntimePerceptionAdapter:
                 player_y=player_y,
                 pixel_to_meter=self._pixel_to_meter,
             )
-            items.append((conf, world_x, world_y))
+            items.append((conf, cls, world_x, world_y))
 
         items.sort(key=lambda item: item[0], reverse=True)
-        points = [(item[1], item[2]) for item in items[: self._max_targets]]
-        return points
+        limited = items[: self._max_targets]
+        points = [(item[2], item[3]) for item in limited]
+        confidences = [item[0] for item in limited]
+        class_ids = [item[1] for item in limited]
+        return points, confidences, class_ids
 
 
 def _project_to_world(

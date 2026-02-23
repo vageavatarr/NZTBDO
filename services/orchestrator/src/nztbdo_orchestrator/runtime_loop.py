@@ -267,6 +267,12 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
     execution_reasons = Counter()
     total_enemies = 0
     total_tracks = 0
+    raw_detections_total = 0
+    confidence_sum = 0.0
+    confidence_count = 0
+    confidence_min = 1.0
+    confidence_max = 0.0
+    class_counts: Counter[int] = Counter()
 
     started = time.time()
     for _ in range(ticks):
@@ -278,6 +284,18 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         execution_reasons[state.result.execution.reason] += 1
         total_enemies += state.enemies_detected
         total_tracks += len(state.track_ids)
+        confidences = loop.perception.last_confidences
+        classes = loop.perception.last_class_ids
+        raw_detections_total += len(confidences)
+        for conf in confidences:
+            confidence_sum += conf
+            confidence_count += 1
+            if conf < confidence_min:
+                confidence_min = conf
+            if conf > confidence_max:
+                confidence_max = conf
+        for cls in classes:
+            class_counts[int(cls)] += 1
         if not state.window_allowed:
             execution_reasons["window_guard_blocked"] += 1
 
@@ -309,6 +327,13 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         "perception_init_reason": loop.perception.init_reason,
         "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
         "avg_tracks_per_tick": round(total_tracks / max(ticks, 1), 3),
+        "detection_analytics": {
+            "raw_detections_total": raw_detections_total,
+            "avg_confidence": round(confidence_sum / max(confidence_count, 1), 4),
+            "min_confidence": round(confidence_min if confidence_count else 0.0, 4),
+            "max_confidence": round(confidence_max if confidence_count else 0.0, 4),
+            "class_counts": {str(k): int(v) for k, v in class_counts.items()},
+        },
         "window_guard_constraints": {
             "titles": loop.window_guard.allowed_titles,
             "processes": loop.window_guard.allowed_processes,

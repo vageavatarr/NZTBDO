@@ -8,6 +8,8 @@ from typing import Any
 
 from nztbdo_orchestrator.runtime_loop import run as run_runtime
 from nztbdo_orchestrator.regression import evaluate_regression, write_regression_report
+from nztbdo_orchestrator.calibration import generate_calibration_report, write_calibration_report
+from nztbdo_orchestrator.config import load_profile_config
 
 _ROOT = Path(__file__).resolve().parents[4]
 _LABELING_SRC = _ROOT / "services" / "labeling" / "src"
@@ -40,6 +42,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_session(args: argparse.Namespace) -> dict[str, Any]:
+    cfg = load_profile_config(_ROOT, args.profile)
     runtime_summary = run_runtime(
         profile_name=args.profile,
         ticks=args.ticks,
@@ -91,6 +94,18 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
         "findings": regression.findings,
         "baseline_sessions": regression.baseline_sessions,
         "report_path": str(regression_report_path),
+    }
+
+    calibration_report = generate_calibration_report(
+        runtime_summary=runtime_summary,
+        thresholds_path=cfg.thresholds_path,
+    )
+    calibration_report_path = events_path.with_name("calibration_report.json")
+    write_calibration_report(calibration_report_path, calibration_report)
+    session_summary["calibration"] = {
+        "model_ready": calibration_report.get("model_ready", False),
+        "findings": calibration_report.get("findings", []),
+        "report_path": str(calibration_report_path),
     }
 
     session_summary_path = events_path.with_name("session_pipeline_summary.json")
