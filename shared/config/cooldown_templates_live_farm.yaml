@@ -18,20 +18,20 @@ templates:
     action: press_shift_rmb_hold
     notes: "user icon #3"
   - template_id: icon_04
+    skill_id: front_hold_shift_rmb_phase2
+    action: press_shift_rmb_hold
+    notes: "user icon #4 (second hit phase of hold RMB combo)"
+  - template_id: icon_05
     skill_id: front_shift_lmb
     action: press_shift_lmb
-    notes: "user icon #4"
-  - template_id: icon_05
-    skill_id: front_long_shift_f
-    action: press_shift_f
     notes: "user icon #5"
   - template_id: icon_06
-    skill_id: finisher_s_lmb
-    action: press_s_lmb
+    skill_id: front_long_shift_f
+    action: press_shift_f
     notes: "user icon #6"
   - template_id: icon_07
-    skill_id: basic_lmb
-    action: press_lmb
+    skill_id: finisher_s_lmb
+    action: press_s_lmb
     notes: "user icon #7"
 
 # ROI settings for automatic icon crops in frame space.
