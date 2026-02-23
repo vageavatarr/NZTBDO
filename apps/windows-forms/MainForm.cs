@@ -29,6 +29,8 @@ public sealed class MainForm : Form
     private DateTime _startedAtUtc;
     private string? _repoRoot;
     private string? _activeSessionDir;
+    private HashSet<string> _knownSessionIds = new(StringComparer.OrdinalIgnoreCase);
+    private string? _lastEventsReadError;
 
     public MainForm()
     {
@@ -156,6 +158,8 @@ public sealed class MainForm : Form
         _process.BeginErrorReadLine();
         _startedAtUtc = DateTime.UtcNow;
         _activeSessionDir = null;
+        _knownSessionIds = LoadSessionIds(Path.Combine(_repoRoot, "data", "logs"));
+        _lastEventsReadError = null;
 
         _statusValue.Text = "Running";
         _pidValue.Text = _process.Id.ToString();
@@ -195,6 +199,7 @@ public sealed class MainForm : Form
         _process?.Dispose();
         _process = null;
         _activeSessionDir = null;
+        _knownSessionIds.Clear();
         _uiTimer.Start();
         RefreshUi();
     }
@@ -234,10 +239,25 @@ public sealed class MainForm : Form
             return;
         }
 
-        var stats = CountEventStats(eventsFile);
-        _eventsValue.Text = stats.total.ToString();
-        _pausedValue.Text = stats.paused.ToString();
-        _guardValue.Text = stats.guardBlocked.ToString();
+        try
+        {
+            var stats = CountEventStats(eventsFile);
+            _eventsValue.Text = stats.total.ToString();
+            _pausedValue.Text = stats.paused.ToString();
+            _guardValue.Text = stats.guardBlocked.ToString();
+            _lastEventsReadError = null;
+        }
+        catch (Exception ex)
+        {
+            _eventsValue.Text = "0";
+            _pausedValue.Text = "0";
+            _guardValue.Text = "0";
+            if (!string.Equals(_lastEventsReadError, ex.Message, StringComparison.Ordinal))
+            {
+                _lastEventsReadError = ex.Message;
+                AppendOutput("[ERR] Failed to read events: " + ex.Message);
+            }
+        }
     }
 
     private static (int total, int paused, int guardBlocked) CountEventStats(string eventsFile)
@@ -281,6 +301,13 @@ public sealed class MainForm : Form
                 return _activeSessionDir;
             }
 
+            var newSession = GetNewestUnknownSessionDir(logsRoot, _knownSessionIds);
+            if (!string.IsNullOrWhiteSpace(newSession))
+            {
+                _activeSessionDir = newSession;
+                return _activeSessionDir;
+            }
+
             var candidate = GetLatestSessionSince(logsRoot, _startedAtUtc.AddSeconds(-30));
             if (!string.IsNullOrWhiteSpace(candidate))
             {
@@ -316,6 +343,56 @@ public sealed class MainForm : Form
         }
 
         return best;
+    }
+
+    private static HashSet<string> LoadSessionIds(string logsRoot)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var dir = new DirectoryInfo(logsRoot);
+        if (!dir.Exists)
+        {
+            return result;
+        }
+
+        foreach (var sessionDir in dir.GetDirectories())
+        {
+            result.Add(sessionDir.Name);
+        }
+
+        return result;
+    }
+
+    private static string? GetNewestUnknownSessionDir(string logsRoot, HashSet<string> knownSessionIds)
+    {
+        var dir = new DirectoryInfo(logsRoot);
+        if (!dir.Exists)
+        {
+            return null;
+        }
+
+        DirectoryInfo? best = null;
+        DateTime bestWrite = DateTime.MinValue;
+        foreach (var sessionDir in dir.GetDirectories())
+        {
+            if (knownSessionIds.Contains(sessionDir.Name))
+            {
+                continue;
+            }
+
+            var eventsFile = Path.Combine(sessionDir.FullName, "events.jsonl");
+            var writeTime = File.Exists(eventsFile)
+                ? File.GetLastWriteTimeUtc(eventsFile)
+                : sessionDir.LastWriteTimeUtc;
+            if (writeTime <= bestWrite)
+            {
+                continue;
+            }
+
+            bestWrite = writeTime;
+            best = sessionDir;
+        }
+
+        return best?.FullName;
     }
 
     private static string? GetLatestSessionSince(string logsRoot, DateTime minUtc)
