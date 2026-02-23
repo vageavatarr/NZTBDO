@@ -189,6 +189,10 @@ Configure in `shared/config/thresholds.yaml`:
 - `input_control.bind_to_process: true` to bind by process/window even when not active
 - `input_control.allow_background_input: true` to use background window message injection (best-effort)
 
+Combat timing guards in `shared/config/thresholds*.yaml`:
+- `combat.post_skill_pause_sec` (default `1.5`)
+- `combat.post_move_skill_block_sec` (default `0.5`)
+
 For live profile, update placeholders in `shared/config/thresholds_live_farm.yaml`:
 - `allowed_window_titles: ["GameWindow"]`
 - `allowed_process_names: ["game.exe"]`

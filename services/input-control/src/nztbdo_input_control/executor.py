@@ -25,26 +25,38 @@ class ActionExecutor:
         allowed_process_names: list[str] | None = None,
         bind_to_process: bool = False,
         allow_background_input: bool = False,
+        post_skill_pause_sec: float = 1.5,
+        post_move_skill_block_sec: float = 0.5,
     ) -> None:
         self._min_interval = 1.0 / max(max_hz, 1)
         self._last_action_ts = 0.0
+        self._last_skill_ts = 0.0
+        self._last_move_ts = 0.0
         self._dry_run = dry_run
         self._allowed_windows = [item.lower() for item in (allowed_window_substrings or []) if item]
         self._allowed_processes = [item.lower() for item in (allowed_process_names or []) if item]
         self._bind_to_process = bind_to_process
         self._allow_background_input = allow_background_input
+        self._post_skill_pause_sec = max(0.0, float(post_skill_pause_sec))
+        self._post_move_skill_block_sec = max(0.0, float(post_move_skill_block_sec))
 
     def execute(self, action: str) -> ExecutionResult:
         now = time.monotonic()
         if action.startswith("press_"):
             if now - self._last_action_ts < self._min_interval:
                 return ExecutionResult(action=action, performed=False, reason="rate_limited")
+            if now - self._last_skill_ts < self._post_skill_pause_sec:
+                return ExecutionResult(action=action, performed=False, reason="post_skill_pause")
+            if now - self._last_move_ts < self._post_move_skill_block_sec:
+                return ExecutionResult(action=action, performed=False, reason="post_move_guard")
             emitted = self._emit_key_action(action)
             if emitted.performed:
                 self._last_action_ts = now
+                self._last_skill_ts = now
             return emitted
 
         if action in {"patrol_move", "face_target", "resume_route", "reposition", "recover"}:
+            self._last_move_ts = now
             return ExecutionResult(action=action, performed=True, reason="movement_intent")
 
         if action in {"idle", "wait_cd", "pause", "panic_stop"}:

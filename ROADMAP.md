@@ -136,6 +136,9 @@ Per skill:
 3. Else use highest-priority single-target ready skill.
 4. If all on cooldown, do filler/basic attack or short reposition.
 5. Hard timeout fallback: if no kill/progress for `T_timeout`, switch to `RECOVERY`.
+6. Skill casts are blocked while movement intents are active/recent:
+   - block window after movement: `post_move_skill_block_sec` (default 0.5s),
+   - pause after each skill cast: `post_skill_pause_sec` (default 1.5s, to be optimized later).
 
 ### Cooldown Tracking
 - Preferred: read cooldown from screen UI (icon state/OCR/brightness classifier).

@@ -39,6 +39,7 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
     bind_to_process = bool(input_cfg.get("bind_to_process", False)) if isinstance(input_cfg, dict) else False
     allow_background_input = bool(input_cfg.get("allow_background_input", False)) if isinstance(input_cfg, dict) else False
     max_hz = int(combat_cfg.get("action_rate_limit_hz", 6)) if isinstance(combat_cfg, dict) else 6
+    post_skill_pause = float(combat_cfg.get("post_skill_pause_sec", 1.5)) if isinstance(combat_cfg, dict) else 1.5
 
     executor = ActionExecutor(
         max_hz=max_hz,
@@ -49,13 +50,14 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
         allow_background_input=allow_background_input,
     )
 
+    regular_pause = max(step_delay, post_skill_pause + 0.1)
     sequence = [
-        ("press_shift_q", 0.6),
-        ("press_hold_q_4s", 0.8),
-        ("press_shift_rmb_hold", 0.8),
-        ("press_shift_lmb", step_delay),
-        ("press_shift_f", step_delay),
-        ("press_s_lmb", step_delay),
+        ("press_shift_q", regular_pause),
+        ("press_hold_q_4s", max(regular_pause, 0.8)),
+        ("press_shift_rmb_hold", max(regular_pause, 0.8)),
+        ("press_shift_lmb", regular_pause),
+        ("press_shift_f", regular_pause),
+        ("press_s_lmb", regular_pause),
     ]
 
     outcomes: list[dict[str, Any]] = []

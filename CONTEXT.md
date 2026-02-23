@@ -238,6 +238,9 @@ These rules are required for initial supervised labeling:
 - `Shift+LMB`: short-range frontal hit, cooldown 7s.
 - `Shift+F`: long-range frontal hit, cooldown 8s.
 - `S+LMB`: short-range finisher, no cooldown, very small radius (1-2 targets).
+- Do not cast skills while moving/running.
+- After any skill cast, keep a 1.5s pause before next skill cast (initial training prior).
+- After movement ends, block skill casts for 0.5s.
 
 6. Enemy visual signature (primary farm target):
 - Humanoid, pale/stone-like body and armor silhouette.

@@ -17,6 +17,8 @@ combat:
   clear_timeout_sec: 2.5
   progress_timeout_sec: 12.0
   action_rate_limit_hz: 8
+  post_skill_pause_sec: 1.5
+  post_move_skill_block_sec: 0.5
 
 navigation:
   stuck_timeout_sec: 6.0

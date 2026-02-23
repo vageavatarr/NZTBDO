@@ -86,6 +86,8 @@ class Orchestrator:
             allowed_process_names=input_cfg["allowed_process_names"],
             bind_to_process=input_cfg["bind_to_process"],
             allow_background_input=input_cfg["allow_background_input"],
+            post_skill_pause_sec=self._read_post_skill_pause_sec(),
+            post_move_skill_block_sec=self._read_post_move_skill_block_sec(),
         )
         self._logger = SessionLogger(_ROOT / "data" / "logs")
         self._nav_runner = load_route_runner_from_yaml(
@@ -264,6 +266,26 @@ class Orchestrator:
         if isinstance(value, (int, float)) and value > 0:
             return float(value)
         return 6.0
+
+    def _read_post_skill_pause_sec(self) -> float:
+        cfg = _read_yaml(self._cfg.thresholds_path)
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return 1.5
+        value = combat_cfg.get("post_skill_pause_sec")
+        if isinstance(value, (int, float)) and value >= 0:
+            return float(value)
+        return 1.5
+
+    def _read_post_move_skill_block_sec(self) -> float:
+        cfg = _read_yaml(self._cfg.thresholds_path)
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return 0.5
+        value = combat_cfg.get("post_move_skill_block_sec")
+        if isinstance(value, (int, float)) and value >= 0:
+            return float(value)
+        return 0.5
 
     def _read_perception_cfg(self) -> dict[str, float]:
         cfg = _read_yaml(self._cfg.thresholds_path)
