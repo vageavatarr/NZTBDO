@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using System.Text.Json;
 
 namespace NZTBDO.WinForms;
@@ -29,6 +28,7 @@ public sealed class MainForm : Form
     private Process? _process;
     private DateTime _startedAtUtc;
     private string? _repoRoot;
+    private string? _activeSessionDir;
 
     public MainForm()
     {
@@ -155,6 +155,7 @@ public sealed class MainForm : Form
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
         _startedAtUtc = DateTime.UtcNow;
+        _activeSessionDir = null;
 
         _statusValue.Text = "Running";
         _pidValue.Text = _process.Id.ToString();
@@ -193,6 +194,7 @@ public sealed class MainForm : Form
 
         _process?.Dispose();
         _process = null;
+        _activeSessionDir = null;
         _uiTimer.Start();
         RefreshUi();
     }
@@ -215,14 +217,15 @@ public sealed class MainForm : Form
             return;
         }
 
-        var latestSession = GetLatestSessionDir(Path.Combine(_repoRoot, "data", "logs"));
-        _sessionValue.Text = latestSession?.Name ?? "-";
-        if (latestSession is null)
+        var logsRoot = Path.Combine(_repoRoot, "data", "logs");
+        var sessionDir = ResolveSessionDir(logsRoot);
+        _sessionValue.Text = sessionDir is null ? "-" : Path.GetFileName(sessionDir);
+        if (sessionDir is null)
         {
             return;
         }
 
-        var eventsFile = Path.Combine(latestSession.FullName, "events.jsonl");
+        var eventsFile = Path.Combine(sessionDir, "events.jsonl");
         if (!File.Exists(eventsFile))
         {
             _eventsValue.Text = "0";
@@ -242,7 +245,15 @@ public sealed class MainForm : Form
         var total = 0;
         var paused = 0;
         var guardBlocked = 0;
-        foreach (var line in File.ReadLines(eventsFile))
+        using var stream = new FileStream(
+            eventsFile,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete
+        );
+        using var reader = new StreamReader(stream);
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
         {
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -259,6 +270,26 @@ public sealed class MainForm : Form
             }
         }
         return (total, paused, guardBlocked);
+    }
+
+    private string? ResolveSessionDir(string logsRoot)
+    {
+        if (_process is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(_activeSessionDir) && Directory.Exists(_activeSessionDir))
+            {
+                return _activeSessionDir;
+            }
+
+            var candidate = GetLatestSessionSince(logsRoot, _startedAtUtc.AddSeconds(-30));
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                _activeSessionDir = candidate;
+                return _activeSessionDir;
+            }
+        }
+
+        return GetLatestSessionDir(logsRoot)?.FullName;
     }
 
     private static DirectoryInfo? GetLatestSessionDir(string logsRoot)
@@ -282,6 +313,34 @@ public sealed class MainForm : Form
                 bestWrite = writeTime;
                 best = sessionDir;
             }
+        }
+
+        return best;
+    }
+
+    private static string? GetLatestSessionSince(string logsRoot, DateTime minUtc)
+    {
+        var dir = new DirectoryInfo(logsRoot);
+        if (!dir.Exists)
+        {
+            return null;
+        }
+
+        string? best = null;
+        DateTime bestWrite = DateTime.MinValue;
+        foreach (var sessionDir in dir.GetDirectories())
+        {
+            var eventsFile = Path.Combine(sessionDir.FullName, "events.jsonl");
+            var writeTime = File.Exists(eventsFile)
+                ? File.GetLastWriteTimeUtc(eventsFile)
+                : sessionDir.LastWriteTimeUtc;
+            if (writeTime < minUtc || writeTime <= bestWrite)
+            {
+                continue;
+            }
+
+            bestWrite = writeTime;
+            best = sessionDir.FullName;
         }
 
         return best;
