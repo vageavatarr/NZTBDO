@@ -30,3 +30,11 @@ cd services/orchestrator
 $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.run_loop
 ```
+
+## Auto-Label Latest Session
+
+```powershell
+cd services/labeling
+$env:PYTHONPATH='src'
+python -m nztbdo_labeling.main --logs-root ../../data/logs --labels-root ../../data/labels
+```
