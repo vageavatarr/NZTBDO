@@ -25,6 +25,7 @@ class ActionExecutor:
         allowed_process_names: list[str] | None = None,
         bind_to_process: bool = False,
         allow_background_input: bool = False,
+        force_activate_before_input: bool = False,
         post_skill_pause_sec: float = 1.5,
         post_move_skill_block_sec: float = 0.5,
     ) -> None:
@@ -37,6 +38,7 @@ class ActionExecutor:
         self._allowed_processes = [item.lower() for item in (allowed_process_names or []) if item]
         self._bind_to_process = bind_to_process
         self._allow_background_input = allow_background_input
+        self._force_activate_before_input = force_activate_before_input
         self._post_skill_pause_sec = max(0.0, float(post_skill_pause_sec))
         self._post_move_skill_block_sec = max(0.0, float(post_move_skill_block_sec))
 
@@ -81,6 +83,10 @@ class ActionExecutor:
         if self._bind_to_process and target_hwnd != 0 and foreground_hwnd != target_hwnd:
             if self._activate_window(target_hwnd):
                 foreground_hwnd = self._get_foreground_hwnd()
+
+        if self._force_activate_before_input and target_hwnd != 0:
+            self._activate_window(target_hwnd)
+            foreground_hwnd = self._get_foreground_hwnd()
 
         use_background = self._allow_background_input and target_hwnd != 0 and target_hwnd != foreground_hwnd
         if use_background:
@@ -258,11 +264,9 @@ class ActionExecutor:
         return self._tap_key(vk)
 
     def _send_shift_q_q(self) -> tuple[bool, str]:
-        user32 = ctypes.windll.user32
-        VK_SHIFT = 0x10
         VK_Q = 0x51
         try:
-            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
             time.sleep(0.01)
             ok1, _ = self._tap_key(VK_Q)
             time.sleep(0.04)
@@ -272,17 +276,16 @@ class ActionExecutor:
             return False, "combo_emit_failed"
         finally:
             try:
-                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+                self._set_key_state(VK_SHIFT, keyup=True)
             except Exception:
                 pass
 
     def _send_shift_rmb_hold(self, hold_sec: float) -> tuple[bool, str]:
         user32 = ctypes.windll.user32
-        VK_SHIFT = 0x10
         MOUSEEVENTF_RIGHTDOWN = 0x0008
         MOUSEEVENTF_RIGHTUP = 0x0010
         try:
-            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
             time.sleep(0.01)
             user32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
             time.sleep(max(0.1, hold_sec))
@@ -292,18 +295,17 @@ class ActionExecutor:
             return False, "combo_emit_failed"
         finally:
             try:
-                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+                self._set_key_state(VK_SHIFT, keyup=True)
             except Exception:
                 pass
 
     def _send_shift_mouse_click(self, left: bool) -> tuple[bool, str]:
         user32 = ctypes.windll.user32
-        VK_SHIFT = 0x10
         down = 0x0002 if left else 0x0008
         up = 0x0004 if left else 0x0010
         reason = "combo_shift_lmb" if left else "combo_shift_rmb"
         try:
-            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
             time.sleep(0.01)
             user32.mouse_event(down, 0, 0, 0, 0)
             time.sleep(0.03)
@@ -313,7 +315,7 @@ class ActionExecutor:
             return False, "combo_emit_failed"
         finally:
             try:
-                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+                self._set_key_state(VK_SHIFT, keyup=True)
             except Exception:
                 pass
 
@@ -322,10 +324,8 @@ class ActionExecutor:
         vk = vk_map.get(key.lower())
         if vk is None:
             return False, "invalid_key"
-        user32 = ctypes.windll.user32
-        VK_SHIFT = 0x10
         try:
-            user32.keybd_event(VK_SHIFT, 0, 0, 0)
+            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
             time.sleep(0.01)
             ok, _ = self._tap_key(vk)
             return ok, "combo_shift_key"
@@ -333,7 +333,7 @@ class ActionExecutor:
             return False, "combo_emit_failed"
         finally:
             try:
-                user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
+                self._set_key_state(VK_SHIFT, keyup=True)
             except Exception:
                 pass
 
@@ -475,6 +475,50 @@ class ActionExecutor:
 
         code = err_up or err_down
         return False, f"sendinput_failed_{code}"
+
+    def _set_key_state(self, vk: int, *, keyup: bool) -> bool:
+        MAPVK_VK_TO_VSC = 0
+        KEYEVENTF_KEYUP = 0x0002
+        KEYEVENTF_SCANCODE = 0x0008
+
+        class KEYBDINPUT(ctypes.Structure):
+            _fields_ = [
+                ("wVk", ctypes.c_ushort),
+                ("wScan", ctypes.c_ushort),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.c_size_t),
+            ]
+
+        class INPUTUNION(ctypes.Union):
+            _fields_ = [("ki", KEYBDINPUT)]
+
+        class INPUT(ctypes.Structure):
+            _fields_ = [("type", ctypes.c_ulong), ("ii", INPUTUNION)]
+
+        user32 = ctypes.windll.user32
+        scan = int(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC))
+        flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if keyup else 0)
+        event = INPUT(
+            type=1,
+            ii=INPUTUNION(
+                ki=KEYBDINPUT(
+                    wVk=0,
+                    wScan=scan,
+                    dwFlags=flags,
+                    time=0,
+                    dwExtraInfo=0,
+                )
+            ),
+        )
+        user32.SendInput.argtypes = (ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int)
+        user32.SendInput.restype = ctypes.c_uint
+        sent = user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(INPUT))
+        if sent == 1:
+            return True
+        # fallback
+        user32.keybd_event(vk, 0, 0x0002 if keyup else 0, 0)
+        return True
 
     def _post_key_tap(self, hwnd: int, vk: int, reason: str) -> tuple[bool, str]:
         user32 = ctypes.windll.user32
