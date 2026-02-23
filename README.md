@@ -21,3 +21,12 @@ python -m nztbdo_orchestrator.main
 ```
 
 Runtime tick logs are written to `data/logs/<session_id>/events.jsonl`.
+Default profile pointer: `shared/config/profiles/default.yaml`.
+
+## Synthetic Loop Run
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.run_loop
+```

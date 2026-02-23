@@ -1,0 +1,7 @@
+version: 1
+profile_id: default
+config:
+  skills: shared/config/skills.yaml
+  route: shared/config/route.yaml
+  thresholds: shared/config/thresholds.yaml
+  hotkeys: shared/config/hotkeys.yaml
