@@ -361,37 +361,44 @@ def run(
     class_counts: Counter[int] = Counter()
 
     started = time.time()
-    for _ in range(ticks):
-        state = loop.step()
-        if state is None:
-            break
-        states[state.result.state.value] += 1
-        actions[state.result.action] += 1
-        execution_reasons[state.result.execution.reason] += 1
-        total_enemies += state.enemies_detected
-        total_tracks += len(state.track_ids)
-        confidences = loop.perception.last_confidences
-        classes = loop.perception.last_class_ids
-        raw_detections_total += len(confidences)
-        for conf in confidences:
-            confidence_sum += conf
-            confidence_count += 1
-            if conf < confidence_min:
-                confidence_min = conf
-            if conf > confidence_max:
-                confidence_max = conf
-        for cls in classes:
-            class_counts[int(cls)] += 1
-        if not state.window_allowed:
-            execution_reasons["window_guard_blocked"] += 1
+    ticks_done = 0
+    try:
+        while True:
+            if ticks > 0 and ticks_done >= ticks:
+                break
+            state = loop.step()
+            if state is None:
+                break
+            ticks_done += 1
+            states[state.result.state.value] += 1
+            actions[state.result.action] += 1
+            execution_reasons[state.result.execution.reason] += 1
+            total_enemies += state.enemies_detected
+            total_tracks += len(state.track_ids)
+            confidences = loop.perception.last_confidences
+            classes = loop.perception.last_class_ids
+            raw_detections_total += len(confidences)
+            for conf in confidences:
+                confidence_sum += conf
+                confidence_count += 1
+                if conf < confidence_min:
+                    confidence_min = conf
+                if conf > confidence_max:
+                    confidence_max = conf
+            for cls in classes:
+                class_counts[int(cls)] += 1
+            if not state.window_allowed:
+                execution_reasons["window_guard_blocked"] += 1
 
-        if verbose:
-            print(
-                f"tick={state.tick_index} state={state.result.state.value} "
-                f"action={state.result.action} enemies={state.enemies_detected} "
-                f"window_allowed={state.window_allowed}"
-            )
-        time.sleep(tick_sleep)
+            if verbose:
+                print(
+                    f"tick={state.tick_index} state={state.result.state.value} "
+                    f"action={state.result.action} enemies={state.enemies_detected} "
+                    f"window_allowed={state.window_allowed}"
+                )
+            time.sleep(tick_sleep)
+    except KeyboardInterrupt:
+        pass
 
     elapsed = max(time.time() - started, 0.001)
     loop.stop()
@@ -399,9 +406,9 @@ def run(
         "profile": profile_name,
         "session_id": loop.orchestrator.session_id,
         "events_path": str(loop.orchestrator.events_path),
-        "ticks": ticks,
+        "ticks": ticks_done,
         "elapsed_sec": round(elapsed, 3),
-        "tps": round(ticks / elapsed, 2),
+        "tps": round(ticks_done / elapsed, 2),
         "states": dict(states),
         "actions": dict(actions),
         "execution_reasons": dict(execution_reasons),
@@ -411,8 +418,8 @@ def run(
         "perception_model_exists": loop.perception.model_exists,
         "perception_ultralytics_available": loop.perception.ultralytics_available,
         "perception_init_reason": loop.perception.init_reason,
-        "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
-        "avg_tracks_per_tick": round(total_tracks / max(ticks, 1), 3),
+        "avg_enemies_detected_per_tick": round(total_enemies / max(ticks_done, 1), 3),
+        "avg_tracks_per_tick": round(total_tracks / max(ticks_done, 1), 3),
         "detection_analytics": {
             "raw_detections_total": raw_detections_total,
             "avg_confidence": round(confidence_sum / max(confidence_count, 1), 4),
@@ -431,6 +438,7 @@ def run(
         "keyboard": {
             "actions_logged": loop._keyboard_actions_logged,
         },
+        "online_learning": loop.orchestrator.online_learning_summary,
     }
     summary_path = Path(loop.orchestrator.events_path).with_name("runtime_summary.json")
     summary_path.write_text(str(_to_pretty_json(summary)), encoding="utf-8")

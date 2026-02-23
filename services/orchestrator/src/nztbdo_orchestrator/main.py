@@ -35,6 +35,7 @@ from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
 from nztbdo_navigation.route_runner import NavigationStatus, load_route_runner_from_yaml
 from nztbdo_perception.spatial import EnemyPoint, compute_spatial_features
 from nztbdo_orchestrator.config import load_profile_config
+from nztbdo_orchestrator.online_trainer import OnlineSkillBandit, PendingFeedback
 
 
 class FSMState(str, Enum):
@@ -95,6 +96,17 @@ class Orchestrator:
             stuck_timeout_sec=float(self._read_stuck_timeout_sec()),
         )
         self._perception_cfg = self._read_perception_cfg()
+        self._online_cfg = self._read_online_learning_cfg()
+        policy_rel = str(self._online_cfg.get("policy_path", f"data/models/online_policy_{self._cfg.profile_id}.json"))
+        self._online_bandit = OnlineSkillBandit(
+            policy_path=(_ROOT / policy_rel).resolve(),
+            enabled=bool(self._online_cfg.get("enabled", False)),
+            epsilon_start=float(self._online_cfg.get("epsilon_start", 0.18)),
+            epsilon_min=float(self._online_cfg.get("epsilon_min", 0.05)),
+            epsilon_decay=float(self._online_cfg.get("epsilon_decay", 0.9995)),
+            seed=int(self._online_cfg.get("seed", 42)),
+        )
+        self._pending_feedback: PendingFeedback | None = None
 
     @property
     def session_id(self) -> str:
@@ -122,11 +134,32 @@ class Orchestrator:
             self.state = FSMState.PATROL
 
     def stop(self) -> None:
+        self._online_bandit.save()
         self.state = FSMState.IDLE
 
     def tick(self, inp: TickInput) -> TickResult:
         cooldowns = inp.skill_cd or {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0}
         enemies_total_near, enemies_in_front = self._resolve_enemy_features(inp)
+        if self._pending_feedback is not None:
+            reward = self._online_bandit.update(
+                self._pending_feedback,
+                enemies_now=enemies_total_near,
+                combat_clear=inp.combat_clear,
+            )
+            self.write_runtime_event(
+                "online_reward_update",
+                {
+                    "timestamp_ms": int(time.time() * 1000),
+                    "context_key": self._pending_feedback.context_key,
+                    "action": self._pending_feedback.action,
+                    "reward": round(float(reward), 4),
+                    "enemies_before": int(self._pending_feedback.enemies_before),
+                    "enemies_now": int(enemies_total_near),
+                    "combat_clear": bool(inp.combat_clear),
+                    "bandit": self._online_bandit.summary(),
+                },
+            )
+            self._pending_feedback = None
 
         if inp.panic:
             self.state = FSMState.PANIC_STOP
@@ -143,6 +176,7 @@ class Orchestrator:
 
         if inp.paused and self.state != FSMState.PANIC_STOP:
             self.state = FSMState.PAUSED
+            self._pending_feedback = None
             action = "pause"
             result = TickResult(
                 state=self.state,
@@ -197,14 +231,20 @@ class Orchestrator:
             self.state = FSMState.PATROL
 
         if self.state == FSMState.COMBAT:
-            decision = self._combat_selector.decide(
-                CombatSnapshot(
-                    enemies_total_near=enemies_total_near,
-                    enemies_in_front=enemies_in_front,
-                    skill_cd=cooldowns,
-                )
+            snapshot = CombatSnapshot(
+                enemies_total_near=enemies_total_near,
+                enemies_in_front=enemies_in_front,
+                skill_cd=cooldowns,
             )
+            candidates = self._combat_selector.ranked_actions(snapshot)
+            decision = self._online_bandit.select(snapshot, candidates)
             execution = self._executor.execute(decision.action)
+            self._pending_feedback = self._online_bandit.make_feedback(
+                snapshot=snapshot,
+                action=decision.action,
+                execution_performed=execution.performed,
+                execution_reason=execution.reason,
+            )
             result = TickResult(
                 state=self.state,
                 action=decision.action,
@@ -215,6 +255,7 @@ class Orchestrator:
             self._log_tick(inp, result)
             return result
 
+        self._pending_feedback = None
         decision = self._default_action_for_state(self.state, nav)
         execution = self._executor.execute(decision.action)
         result = TickResult(
@@ -305,6 +346,32 @@ class Orchestrator:
             "front_cone_range_m": float(rng),
         }
 
+    def _read_online_learning_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self._cfg.thresholds_path)
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return {
+                "enabled": False,
+                "epsilon_start": 0.18,
+                "epsilon_min": 0.05,
+                "epsilon_decay": 0.9995,
+                "seed": 42,
+                "policy_path": f"data/models/online_policy_{self._cfg.profile_id}.json",
+            }
+        online_cfg = combat_cfg.get("online_learning")
+        if not isinstance(online_cfg, dict):
+            online_cfg = {}
+        return {
+            "enabled": bool(online_cfg.get("enabled", False)),
+            "epsilon_start": float(online_cfg.get("epsilon_start", 0.18)),
+            "epsilon_min": float(online_cfg.get("epsilon_min", 0.05)),
+            "epsilon_decay": float(online_cfg.get("epsilon_decay", 0.9995)),
+            "seed": int(online_cfg.get("seed", 42)),
+            "policy_path": str(
+                online_cfg.get("policy_path", f"data/models/online_policy_{self._cfg.profile_id}.json")
+            ),
+        }
+
     def _read_input_control_cfg(self) -> dict[str, Any]:
         cfg = _read_yaml(self._cfg.thresholds_path)
         input_cfg = cfg.get("input_control")
@@ -360,6 +427,10 @@ class Orchestrator:
             execution=result.execution,
             navigation=result.navigation,
         )
+
+    @property
+    def online_learning_summary(self) -> dict[str, Any]:
+        return self._online_bandit.summary()
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

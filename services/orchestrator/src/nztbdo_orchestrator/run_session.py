@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
         description="Run full NZTBDO session pipeline: runtime -> labeling -> training."
     )
     parser.add_argument("--profile", default="default")
-    parser.add_argument("--ticks", type=int, default=300)
+    parser.add_argument("--ticks", type=int, default=300, help="Runtime ticks; use 0 for continuous run until stopped.")
     parser.add_argument("--tick-sleep", type=float, default=0.05)
     parser.add_argument("--start-delay", type=float, default=0.0)
     parser.add_argument("--pre-ticks", type=int, default=2)

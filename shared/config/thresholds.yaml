@@ -19,6 +19,13 @@ combat:
   action_rate_limit_hz: 8
   post_skill_pause_sec: 1.5
   post_move_skill_block_sec: 0.5
+  online_learning:
+    enabled: false
+    epsilon_start: 0.18
+    epsilon_min: 0.05
+    epsilon_decay: 0.9995
+    seed: 42
+    policy_path: data/models/online_policy_default.json
 
 navigation:
   stuck_timeout_sec: 6.0

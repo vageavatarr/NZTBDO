@@ -117,7 +117,7 @@ public sealed class MainForm : Form
     private void StartSession()
     {
         StartProcess(
-            arguments: "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 12000 --tick-sleep 0.05 --start-delay 2 --quiet-runtime",
+            arguments: "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 0 --tick-sleep 0.05 --start-delay 2 --quiet-runtime",
             statusText: "Running Session"
         );
     }

@@ -35,13 +35,20 @@ class CombatSelector:
         self._skills = sorted(skills, key=lambda s: s.priority, reverse=True)
 
     def decide(self, snapshot: CombatSnapshot) -> Decision:
+        ranked = self.ranked_actions(snapshot)
+        if ranked:
+            return ranked[0]
+        return Decision(action="patrol_move", reason="no_enemies")
+
+    def ranked_actions(self, snapshot: CombatSnapshot) -> list[Decision]:
+        ranked: list[Decision] = []
         front_ready = self._ready_candidates(
             kinds={"cone", "line"},
             targets=snapshot.enemies_in_front,
             cooldowns=snapshot.skill_cd,
         )
         if front_ready:
-            return Decision(action=f"press_{front_ready[0].key}", reason="front_aoe")
+            ranked.extend(Decision(action=f"press_{skill.key}", reason="front_aoe") for skill in front_ready)
 
         around_ready = self._ready_candidates(
             kinds={"circle"},
@@ -49,7 +56,7 @@ class CombatSelector:
             cooldowns=snapshot.skill_cd,
         )
         if around_ready:
-            return Decision(action=f"press_{around_ready[0].key}", reason="around_aoe")
+            ranked.extend(Decision(action=f"press_{skill.key}", reason="around_aoe") for skill in around_ready)
 
         single_ready = self._ready_candidates(
             kinds={"single"},
@@ -57,15 +64,18 @@ class CombatSelector:
             cooldowns=snapshot.skill_cd,
         )
         if single_ready:
-            return Decision(action=f"press_{single_ready[0].key}", reason="single_target")
+            ranked.extend(Decision(action=f"press_{skill.key}", reason="single_target") for skill in single_ready)
+
+        if ranked:
+            return ranked
 
         if snapshot.enemies_total_near > 0 and snapshot.enemies_in_front == 0:
-            return Decision(action="reposition", reason="no_front_targets")
+            return [Decision(action="reposition", reason="no_front_targets")]
 
         if snapshot.enemies_total_near > 0:
-            return Decision(action="wait_cd", reason="cooldown_wait")
+            return [Decision(action="wait_cd", reason="cooldown_wait")]
 
-        return Decision(action="patrol_move", reason="no_enemies")
+        return [Decision(action="patrol_move", reason="no_enemies")]
 
     def _ready_candidates(
         self,
