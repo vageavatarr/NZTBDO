@@ -19,10 +19,14 @@ combat:
   action_rate_limit_hz: 6
   post_skill_pause_sec: 1.5
   post_move_skill_block_sec: 0.5
+  training:
+    force_combat_training: true
+    forced_enemies_total_near: 5
+    forced_enemies_in_front: 3
   online_learning:
     enabled: true
-    epsilon_start: 0.18
-    epsilon_min: 0.05
+    epsilon_start: 0.45
+    epsilon_min: 0.15
     epsilon_decay: 0.9995
     seed: 42
     policy_path: data/models/online_policy_live_farm.json
@@ -35,7 +39,7 @@ input_control:
   dry_run: false
   require_foreground_window: false
   bind_to_process: true
-  allow_background_input: true
+  allow_background_input: false
   allowed_window_titles:
     - Black Desert
   allowed_process_names:

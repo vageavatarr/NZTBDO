@@ -19,6 +19,10 @@ combat:
   action_rate_limit_hz: 8
   post_skill_pause_sec: 1.5
   post_move_skill_block_sec: 0.5
+  training:
+    force_combat_training: false
+    forced_enemies_total_near: 5
+    forced_enemies_in_front: 3
   online_learning:
     enabled: false
     epsilon_start: 0.18

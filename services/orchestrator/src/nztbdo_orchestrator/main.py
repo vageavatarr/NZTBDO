@@ -96,6 +96,7 @@ class Orchestrator:
             stuck_timeout_sec=float(self._read_stuck_timeout_sec()),
         )
         self._perception_cfg = self._read_perception_cfg()
+        self._combat_training_cfg = self._read_combat_training_cfg()
         self._online_cfg = self._read_online_learning_cfg()
         policy_rel = str(self._online_cfg.get("policy_path", f"data/models/online_policy_{self._cfg.profile_id}.json"))
         self._online_bandit = OnlineSkillBandit(
@@ -140,6 +141,9 @@ class Orchestrator:
     def tick(self, inp: TickInput) -> TickResult:
         cooldowns = inp.skill_cd or {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0}
         enemies_total_near, enemies_in_front = self._resolve_enemy_features(inp)
+        if bool(self._combat_training_cfg.get("force_combat_training", False)):
+            enemies_total_near = max(int(self._combat_training_cfg.get("forced_enemies_total_near", 5)), enemies_total_near)
+            enemies_in_front = max(int(self._combat_training_cfg.get("forced_enemies_in_front", 3)), enemies_in_front)
         if self._pending_feedback is not None:
             reward = self._online_bandit.update(
                 self._pending_feedback,
@@ -193,6 +197,32 @@ class Orchestrator:
             pos_y=inp.pos_y,
             in_combat=self.state == FSMState.COMBAT,
         )
+
+        if bool(self._combat_training_cfg.get("force_combat_training", False)):
+            self.state = FSMState.COMBAT
+            snapshot = CombatSnapshot(
+                enemies_total_near=enemies_total_near,
+                enemies_in_front=enemies_in_front,
+                skill_cd=cooldowns,
+            )
+            candidates = self._combat_selector.ranked_actions(snapshot)
+            decision = self._online_bandit.select(snapshot, candidates)
+            execution = self._executor.execute(decision.action)
+            self._pending_feedback = self._online_bandit.make_feedback(
+                snapshot=snapshot,
+                action=decision.action,
+                execution_performed=execution.performed,
+                execution_reason=execution.reason,
+            )
+            result = TickResult(
+                state=self.state,
+                action=decision.action,
+                reason=f"{decision.reason}|forced_combat_training",
+                execution=execution,
+                navigation=None,
+            )
+            self._log_tick(inp, result)
+            return result
 
         if nav.stuck and self.state not in {FSMState.PANIC_STOP, FSMState.PAUSED, FSMState.COMBAT}:
             self.state = FSMState.RECOVERY
@@ -370,6 +400,24 @@ class Orchestrator:
             "policy_path": str(
                 online_cfg.get("policy_path", f"data/models/online_policy_{self._cfg.profile_id}.json")
             ),
+        }
+
+    def _read_combat_training_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self._cfg.thresholds_path)
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return {
+                "force_combat_training": False,
+                "forced_enemies_total_near": 5,
+                "forced_enemies_in_front": 3,
+            }
+        training_cfg = combat_cfg.get("training")
+        if not isinstance(training_cfg, dict):
+            training_cfg = {}
+        return {
+            "force_combat_training": bool(training_cfg.get("force_combat_training", False)),
+            "forced_enemies_total_near": int(training_cfg.get("forced_enemies_total_near", 5)),
+            "forced_enemies_in_front": int(training_cfg.get("forced_enemies_in_front", 3)),
         }
 
     def _read_input_control_cfg(self) -> dict[str, Any]:
