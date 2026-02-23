@@ -20,6 +20,7 @@ templates:
   - template_id: icon_04
     skill_id: front_hold_shift_rmb_phase2
     action: press_shift_rmb_hold
+    cooldown_sec: 7.0
     notes: "user icon #4 (second hit phase of hold RMB combo)"
   - template_id: icon_05
     skill_id: front_shift_lmb

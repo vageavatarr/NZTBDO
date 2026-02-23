@@ -47,7 +47,7 @@ skills:
   - id: finisher_s_lmb
     key: "s_lmb"
     kind: single
-    cooldown_sec: 0.0
+    cooldown_sec: 7.0
     priority: 70
     min_targets: 1
     max_targets: 2
