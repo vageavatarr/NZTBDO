@@ -71,7 +71,7 @@ Controls:
 
 The UI includes a profile selector populated from `shared/config/profiles/*.yaml`.
 UI `Start` now runs the runtime pipeline: primary monitor capture -> perception adapter -> orchestrator -> input executor.
-If window guard constraints are set and active window/process does not match, runtime auto-pauses.
+If window guard constraints are set and active window/process does not match, runtime auto-pauses and auto-resumes when focus returns.
 
 ## Runtime Loop (Headless)
 

@@ -109,6 +109,32 @@ class RuntimeLoop:
         self.tick_index += 1
         window_check = self.window_guard.check()
         if self._paused:
+            # Auto-resume only when pause was caused by guard and target window is back in focus.
+            if self._paused_by_guard and window_check.allowed:
+                self._paused = False
+                self._paused_by_guard = False
+            else:
+                result = self.orchestrator.tick(TickInput(paused=True))
+                self._telemetry.record_window(
+                    title=window_check.title or "Unknown",
+                    process=window_check.process_name or "unknown.exe",
+                    rect=self.capture.primary_monitor,
+                )
+                state = RuntimeState(
+                    tick_index=self.tick_index,
+                    frame_path="",
+                    enemies_detected=0,
+                    result=result,
+                    window_title=window_check.title,
+                    window_process=window_check.process_name,
+                    window_allowed=window_check.allowed,
+                    window_reason="guard_pause" if self._paused_by_guard else "paused",
+                    track_ids=[],
+                )
+                self._last_runtime_state = state
+                return state
+
+        if self._paused:
             result = self.orchestrator.tick(TickInput(paused=True))
             self._telemetry.record_window(
                 title=window_check.title or "Unknown",
