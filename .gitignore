@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+
+# data artifacts
+/data/raw/**
+/data/processed/**
+/data/labels/**
+/data/models/**
+/data/logs/**
+
+# keep folder placeholders
+!/data/raw/.gitkeep
+!/data/processed/.gitkeep
+!/data/labels/.gitkeep
+!/data/models/.gitkeep
+!/data/logs/.gitkeep

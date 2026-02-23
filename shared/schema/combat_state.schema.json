@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nztbdo/combat_state.schema.json",
+  "title": "CombatState",
+  "type": "object",
+  "required": [
+    "session_id",
+    "timestamp_ms",
+    "fsm_state",
+    "enemies_total_near",
+    "enemies_in_front",
+    "skill_cd",
+    "in_combat"
+  ],
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "episode_id": { "type": "string" },
+    "timestamp_ms": { "type": "integer", "minimum": 0 },
+    "fsm_state": {
+      "type": "string",
+      "enum": [
+        "IDLE",
+        "PATROL",
+        "ENGAGE_CHECK",
+        "COMBAT",
+        "POST_COMBAT",
+        "RECOVERY",
+        "PAUSED",
+        "PANIC_STOP"
+      ]
+    },
+    "enemies_total_near": { "type": "integer", "minimum": 0 },
+    "enemies_in_front": { "type": "integer", "minimum": 0 },
+    "nearest_enemy_dist": { "type": "number", "minimum": 0 },
+    "target_id": { "type": ["string", "null"] },
+    "skill_cd": {
+      "type": "object",
+      "required": ["1", "2", "3", "4"],
+      "properties": {
+        "1": { "type": "number", "minimum": 0 },
+        "2": { "type": "number", "minimum": 0 },
+        "3": { "type": "number", "minimum": 0 },
+        "4": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "in_combat": { "type": "boolean" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  },
+  "additionalProperties": true
+}

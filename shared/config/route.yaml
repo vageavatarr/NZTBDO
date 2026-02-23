@@ -1,0 +1,23 @@
+version: 1
+route_id: starter_loop
+loop: true
+waypoints:
+  - id: wp_001
+    x: 0.0
+    y: 0.0
+    tolerance_m: 2.0
+
+  - id: wp_002
+    x: 35.0
+    y: 4.0
+    tolerance_m: 2.5
+
+  - id: wp_003
+    x: 38.0
+    y: 40.0
+    tolerance_m: 2.5
+
+  - id: wp_004
+    x: 2.0
+    y: 42.0
+    tolerance_m: 2.0

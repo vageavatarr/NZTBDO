@@ -1,0 +1,6 @@
+version: 1
+hotkeys:
+  start_resume: F5
+  pause: F6
+  stop: F7
+  panic: F12

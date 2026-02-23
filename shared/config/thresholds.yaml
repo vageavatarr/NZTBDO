@@ -1,0 +1,16 @@
+version: 1
+perception:
+  detection_confidence_min: 0.55
+  engage_confidence_min: 0.65
+  near_radius_m: 8.0
+  front_cone_angle_deg: 90
+  front_cone_range_m: 7.0
+
+combat:
+  clear_timeout_sec: 2.5
+  progress_timeout_sec: 12.0
+  action_rate_limit_hz: 8
+
+navigation:
+  stuck_timeout_sec: 6.0
+  waypoint_reacquire_max_m: 20.0

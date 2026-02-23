@@ -1,0 +1,35 @@
+version: 1
+class_profile: default
+skills:
+  - id: slash_front
+    key: "1"
+    kind: cone
+    cooldown_sec: 6.0
+    priority: 90
+    min_targets: 3
+    range_m: 6.0
+    angle_deg: 70
+
+  - id: whirlwind
+    key: "2"
+    kind: circle
+    cooldown_sec: 10.0
+    priority: 80
+    min_targets: 4
+    radius_m: 4.0
+
+  - id: strike
+    key: "3"
+    kind: single
+    cooldown_sec: 4.0
+    priority: 70
+    min_targets: 1
+    range_m: 5.0
+
+  - id: execute
+    key: "4"
+    kind: single
+    cooldown_sec: 12.0
+    priority: 60
+    min_targets: 1
+    range_m: 5.0
