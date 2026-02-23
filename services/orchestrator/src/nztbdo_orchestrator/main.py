@@ -83,6 +83,9 @@ class Orchestrator:
             max_hz=self._read_action_rate_limit(),
             dry_run=input_cfg["dry_run"],
             allowed_window_substrings=input_cfg["allowed_window_titles"],
+            allowed_process_names=input_cfg["allowed_process_names"],
+            bind_to_process=input_cfg["bind_to_process"],
+            allow_background_input=input_cfg["allow_background_input"],
         )
         self._logger = SessionLogger(_ROOT / "data" / "logs")
         self._nav_runner = load_route_runner_from_yaml(
@@ -284,14 +287,30 @@ class Orchestrator:
         cfg = _read_yaml(self._cfg.thresholds_path)
         input_cfg = cfg.get("input_control")
         if not isinstance(input_cfg, dict):
-            return {"dry_run": True, "allowed_window_titles": []}
+            return {
+                "dry_run": True,
+                "allowed_window_titles": [],
+                "allowed_process_names": [],
+                "bind_to_process": False,
+                "allow_background_input": False,
+            }
 
         dry_run = input_cfg.get("dry_run", True)
-        allowed = input_cfg.get("allowed_window_titles", [])
-        if not isinstance(allowed, list):
-            allowed = []
-        allowed_clean = [str(item) for item in allowed if str(item).strip()]
-        return {"dry_run": bool(dry_run), "allowed_window_titles": allowed_clean}
+        titles = input_cfg.get("allowed_window_titles", [])
+        processes = input_cfg.get("allowed_process_names", [])
+        if not isinstance(titles, list):
+            titles = []
+        if not isinstance(processes, list):
+            processes = []
+        titles_clean = [str(item) for item in titles if str(item).strip()]
+        processes_clean = [str(item) for item in processes if str(item).strip()]
+        return {
+            "dry_run": bool(dry_run),
+            "allowed_window_titles": titles_clean,
+            "allowed_process_names": processes_clean,
+            "bind_to_process": bool(input_cfg.get("bind_to_process", False)),
+            "allow_background_input": bool(input_cfg.get("allow_background_input", False)),
+        }
 
     def _resolve_enemy_features(self, inp: TickInput) -> tuple[int, int]:
         if not inp.enemy_points:

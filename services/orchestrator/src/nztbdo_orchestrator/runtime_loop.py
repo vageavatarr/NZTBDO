@@ -54,6 +54,7 @@ class RuntimeLoop:
         self.window_guard = WindowGuard(
             allowed_titles=list(input_cfg["allowed_window_titles"]),
             allowed_processes=list(input_cfg["allowed_process_names"]),
+            require_foreground=bool(input_cfg["require_foreground_window"]),
         )
         self.tick_index = 0
         self._running = False
@@ -290,7 +291,11 @@ class RuntimeLoop:
         cfg = _read_yaml(self.orchestrator.thresholds_path)
         input_cfg = cfg.get("input_control")
         if not isinstance(input_cfg, dict):
-            return {"allowed_window_titles": [], "allowed_process_names": []}
+            return {
+                "allowed_window_titles": [],
+                "allowed_process_names": [],
+                "require_foreground_window": True,
+            }
 
         titles = input_cfg.get("allowed_window_titles", [])
         processes = input_cfg.get("allowed_process_names", [])
@@ -301,6 +306,7 @@ class RuntimeLoop:
         return {
             "allowed_window_titles": [str(v) for v in titles if str(v).strip()],
             "allowed_process_names": [str(v) for v in processes if str(v).strip()],
+            "require_foreground_window": bool(input_cfg.get("require_foreground_window", True)),
         }
 
     def _record_keyboard_action(self, result: TickResult, window_check: WindowCheck) -> None:

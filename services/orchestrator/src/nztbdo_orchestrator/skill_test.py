@@ -34,13 +34,19 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
     input_cfg = thresholds.get("input_control", {})
     combat_cfg = thresholds.get("combat", {})
     dry_run = bool(input_cfg.get("dry_run", True)) if isinstance(input_cfg, dict) else True
-    allowed = input_cfg.get("allowed_window_titles", []) if isinstance(input_cfg, dict) else []
+    allowed_titles = input_cfg.get("allowed_window_titles", []) if isinstance(input_cfg, dict) else []
+    allowed_processes = input_cfg.get("allowed_process_names", []) if isinstance(input_cfg, dict) else []
+    bind_to_process = bool(input_cfg.get("bind_to_process", False)) if isinstance(input_cfg, dict) else False
+    allow_background_input = bool(input_cfg.get("allow_background_input", False)) if isinstance(input_cfg, dict) else False
     max_hz = int(combat_cfg.get("action_rate_limit_hz", 6)) if isinstance(combat_cfg, dict) else 6
 
     executor = ActionExecutor(
         max_hz=max_hz,
         dry_run=dry_run,
-        allowed_window_substrings=[str(item) for item in allowed if str(item).strip()],
+        allowed_window_substrings=[str(item) for item in allowed_titles if str(item).strip()],
+        allowed_process_names=[str(item) for item in allowed_processes if str(item).strip()],
+        bind_to_process=bind_to_process,
+        allow_background_input=allow_background_input,
     )
 
     sequence = [

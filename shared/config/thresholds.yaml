@@ -24,5 +24,8 @@ navigation:
 
 input_control:
   dry_run: true
+  require_foreground_window: true
+  bind_to_process: false
+  allow_background_input: false
   allowed_window_titles: []
   allowed_process_names: []

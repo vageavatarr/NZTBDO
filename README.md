@@ -165,6 +165,9 @@ Configure in `shared/config/thresholds.yaml`:
 - `input_control.dry_run: false` to enable real key presses
 - `input_control.allowed_window_titles: [...]` to restrict by foreground window title
 - `input_control.allowed_process_names: [...]` to restrict by foreground process name
+- `input_control.require_foreground_window: false` to allow background/minimized window binding
+- `input_control.bind_to_process: true` to bind by process/window even when not active
+- `input_control.allow_background_input: true` to use background window message injection (best-effort)
 
 For live profile, update placeholders in `shared/config/thresholds_live_farm.yaml`:
 - `allowed_window_titles: ["GameWindow"]`
