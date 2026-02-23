@@ -66,6 +66,10 @@ class ActionExecutor:
             return ExecutionResult(action=action, performed=False, reason="unsupported_platform")
 
         foreground_hwnd = self._get_foreground_hwnd()
+        if self._bind_to_process and target_hwnd != 0 and foreground_hwnd != target_hwnd:
+            if self._activate_window(target_hwnd):
+                foreground_hwnd = self._get_foreground_hwnd()
+
         use_background = self._allow_background_input and target_hwnd != 0 and target_hwnd != foreground_hwnd
         if use_background:
             ok, fail_reason = self._send_action_background(target_hwnd, key)
@@ -352,7 +356,10 @@ class ActionExecutor:
                 pass
 
     def _tap_key(self, vk: int) -> tuple[bool, str]:
-        
+        MAPVK_VK_TO_VSC = 0
+        KEYEVENTF_KEYUP = 0x0002
+        KEYEVENTF_SCANCODE = 0x0008
+
         # INPUT structures for SendInput (Windows API layout).
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [
@@ -390,16 +397,35 @@ class ActionExecutor:
         class INPUT(ctypes.Structure):
             _fields_ = [("type", ctypes.c_ulong), ("ii", INPUTUNION)]
 
+        user32 = ctypes.windll.user32
+        scan = int(user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC))
+
+        # Prefer scan code mode for games that ignore virtual-key simulation.
         keydown = INPUT(
             type=1,
-            ii=INPUTUNION(ki=KEYBDINPUT(wVk=vk, wScan=0, dwFlags=0x0000, time=0, dwExtraInfo=0)),
+            ii=INPUTUNION(
+                ki=KEYBDINPUT(
+                    wVk=0,
+                    wScan=scan,
+                    dwFlags=KEYEVENTF_SCANCODE,
+                    time=0,
+                    dwExtraInfo=0,
+                )
+            ),
         )
         keyup = INPUT(
             type=1,
-            ii=INPUTUNION(ki=KEYBDINPUT(wVk=vk, wScan=0, dwFlags=0x0002, time=0, dwExtraInfo=0)),
+            ii=INPUTUNION(
+                ki=KEYBDINPUT(
+                    wVk=0,
+                    wScan=scan,
+                    dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+                    time=0,
+                    dwExtraInfo=0,
+                )
+            ),
         )
 
-        user32 = ctypes.windll.user32
         user32.SendInput.argtypes = (ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int)
         user32.SendInput.restype = ctypes.c_uint
 
