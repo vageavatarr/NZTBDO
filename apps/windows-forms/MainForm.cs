@@ -136,6 +136,8 @@ public sealed class MainForm : Form
             return;
         }
 
+        KillOrphanedBotProcesses();
+
         var workingDir = Path.Combine(_repoRoot, "services", "orchestrator");
         var psi = new ProcessStartInfo
         {
@@ -200,14 +202,9 @@ public sealed class MainForm : Form
 
     private void StopSession()
     {
-        if (_process is null)
-        {
-            return;
-        }
-
         try
         {
-            if (!_process.HasExited)
+            if (_process is not null && !_process.HasExited)
             {
                 _process.Kill(entireProcessTree: true);
             }
@@ -215,6 +212,10 @@ public sealed class MainForm : Form
         catch
         {
             // Ignore stop errors to keep UI responsive.
+        }
+        finally
+        {
+            KillOrphanedBotProcesses();
         }
     }
 
@@ -491,5 +492,32 @@ public sealed class MainForm : Form
         }
 
         _outputBox.AppendText(line + Environment.NewLine);
+    }
+
+    private void KillOrphanedBotProcesses()
+    {
+        try
+        {
+            var script =
+                "Get-CimInstance Win32_Process | " +
+                "Where-Object { ($_.Name -match 'python|cmd') -and $_.CommandLine -match 'nztbdo_orchestrator\\.(run_session|runtime_loop|skill_test|run_profile)' } | " +
+                "ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {} }";
+            using var killer = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell",
+                    Arguments = "-NoProfile -WindowStyle Hidden -Command \"" + script + "\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            killer.Start();
+            killer.WaitForExit(5000);
+        }
+        catch
+        {
+            // Non-fatal: best-effort cleanup.
+        }
     }
 }
