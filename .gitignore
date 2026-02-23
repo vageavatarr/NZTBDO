@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 .env
 .pytest_cache/
+**/bin/
+**/obj/
 
 # data artifacts
 /data/raw/**
