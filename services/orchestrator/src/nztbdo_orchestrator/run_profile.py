@@ -33,7 +33,8 @@ def generate_tick(idx: int) -> TickInput:
             engage_confidence=0.0,
             combat_clear=False,
             skill_cd={
-                "aoe_around_shift_q_q": 0.0,
+                "aoe_around_shift_q": 0.0,
+                "aoe_followup_hold_q_4s": 0.0,
                 "front_hold_shift_rmb": 0.0,
                 "front_shift_lmb": 0.0,
                 "front_long_shift_f": 0.0,
@@ -50,7 +51,8 @@ def generate_tick(idx: int) -> TickInput:
         engage_confidence=0.75,
         combat_clear=in_cleanup,
         skill_cd={
-            "aoe_around_shift_q_q": 0.0 if idx % 10 == 0 else 6.0,
+            "aoe_around_shift_q": 0.0 if idx % 10 == 0 else 5.0,
+            "aoe_followup_hold_q_4s": 0.0 if idx % 14 == 0 else 6.0,
             "front_hold_shift_rmb": 0.0 if idx % 8 == 0 else 3.0,
             "front_shift_lmb": 0.0 if idx % 7 == 0 else 2.0,
             "front_long_shift_f": 0.0 if idx % 9 == 0 else 4.0,

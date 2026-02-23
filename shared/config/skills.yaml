@@ -1,13 +1,21 @@
 version: 1
 class_profile: bdo_combo_v1
 skills:
-  - id: aoe_around_shift_q_q
-    key: "shift_q_q"
+  - id: aoe_around_shift_q
+    key: "shift_q"
     kind: circle
-    cooldown_sec: 10.0
+    cooldown_sec: 8.0
     priority: 100
     min_targets: 4
     radius_m: 4.5
+
+  - id: aoe_followup_hold_q_4s
+    key: "hold_q_4s"
+    kind: circle
+    cooldown_sec: 8.0
+    priority: 98
+    min_targets: 2
+    radius_m: 4.0
 
   - id: front_hold_shift_rmb
     key: "shift_rmb_hold"

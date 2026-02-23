@@ -87,6 +87,10 @@ class ActionExecutor:
     def _send_action_windows(self, key: str) -> tuple[bool, str]:
         if key in {"1", "2", "3", "4"}:
             return self._send_key_windows(key)
+        if key == "shift_q":
+            return self._send_shift_key("q")
+        if key == "hold_q_4s":
+            return self._send_hold_key("q", hold_sec=4.0)
         if key == "shift_q_q":
             return self._send_shift_q_q()
         if key == "shift_rmb_hold":
@@ -167,7 +171,7 @@ class ActionExecutor:
                 pass
 
     def _send_shift_key(self, key: str) -> tuple[bool, str]:
-        vk_map = {"f": 0x46}
+        vk_map = {"q": 0x51, "f": 0x46}
         vk = vk_map.get(key.lower())
         if vk is None:
             return False, "invalid_key"
@@ -185,6 +189,20 @@ class ActionExecutor:
                 user32.keybd_event(VK_SHIFT, 0, 0x0002, 0)
             except Exception:
                 pass
+
+    def _send_hold_key(self, key: str, hold_sec: float) -> tuple[bool, str]:
+        vk_map = {"q": 0x51}
+        vk = vk_map.get(key.lower())
+        if vk is None:
+            return False, "invalid_key"
+        user32 = ctypes.windll.user32
+        try:
+            user32.keybd_event(vk, 0, 0, 0)
+            time.sleep(max(0.1, hold_sec))
+            user32.keybd_event(vk, 0, 0x0002, 0)
+            return True, "hold_key_emit"
+        except Exception:
+            return False, "combo_emit_failed"
 
     def _send_s_lmb(self) -> tuple[bool, str]:
         user32 = ctypes.windll.user32

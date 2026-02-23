@@ -361,7 +361,8 @@ def demo() -> None:
         TickInput(
             engage_confidence=0.8,
             skill_cd={
-                "aoe_around_shift_q_q": 0.0,
+                "aoe_around_shift_q": 0.0,
+                "aoe_followup_hold_q_4s": 0.0,
                 "front_hold_shift_rmb": 0.0,
                 "front_shift_lmb": 0.0,
                 "front_long_shift_f": 7.0,
@@ -374,7 +375,8 @@ def demo() -> None:
         ),
         TickInput(
             skill_cd={
-                "aoe_around_shift_q_q": 5.0,
+                "aoe_around_shift_q": 5.0,
+                "aoe_followup_hold_q_4s": 6.0,
                 "front_hold_shift_rmb": 7.0,
                 "front_shift_lmb": 0.0,
                 "front_long_shift_f": 6.0,

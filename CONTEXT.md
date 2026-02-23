@@ -232,7 +232,8 @@ These rules are required for initial supervised labeling:
 - Character model may rotate independently while moving and does not reliably encode global heading.
 
 5. Combat combo profile (`bdo_combo_v1`):
-- `Shift+Q+Q`: AOE around character, cooldown 10s.
+- `Shift+Q`: AOE around character, cooldown 8s.
+- Hold `Q` for 4s: follow-up AOE phase with separate cooldown (8s).
 - `Shift+RMB` hold 2.5s: short-range frontal double hit, cooldown 8s.
 - `Shift+LMB`: short-range frontal hit, cooldown 7s.
 - `Shift+F`: long-range frontal hit, cooldown 8s.

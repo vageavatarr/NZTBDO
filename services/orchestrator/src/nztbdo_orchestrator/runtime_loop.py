@@ -226,7 +226,8 @@ class RuntimeLoop:
             engage_confidence=0.78 if has_enemies else 0.0,
             combat_clear=combat_clear,
             skill_cd={
-                "aoe_around_shift_q_q": 0.0 if self.tick_index % 12 == 0 else 6.0,
+                "aoe_around_shift_q": 0.0 if self.tick_index % 10 == 0 else 5.0,
+                "aoe_followup_hold_q_4s": 0.0 if self.tick_index % 14 == 0 else 6.0,
                 "front_hold_shift_rmb": 0.0 if self.tick_index % 8 == 0 else 3.0,
                 "front_shift_lmb": 0.0 if self.tick_index % 7 == 0 else 2.5,
                 "front_long_shift_f": 0.0 if self.tick_index % 9 == 0 else 4.0,

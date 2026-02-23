@@ -161,7 +161,8 @@ For live profile, update placeholders in `shared/config/thresholds_live_farm.yam
 - `allowed_process_names: ["game.exe"]`
 
 Current combo actions supported by executor:
-- `press_shift_q_q`
+- `press_shift_q`
+- `press_hold_q_4s` (hold 4.0s)
 - `press_shift_rmb_hold` (2.5s hold)
 - `press_shift_lmb`
 - `press_shift_f`
