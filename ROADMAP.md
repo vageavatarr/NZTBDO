@@ -198,6 +198,13 @@ Data quality rules:
 - dropped-frame counters,
 - confidence tracked for all model outputs.
 
+Primary visual priors (from live gameplay):
+- yellow exclamation mark above monster == engaged/aggro candidate,
+- controlled player is anchored near screen center and identified by two bars above the character.
+- early dataset labeling should explicitly store:
+  - `aggro_exclamation_near_count`,
+  - `aggro_exclamation_front_count`.
+
 ---
 
 ## 8) Auto-Labeling Strategy

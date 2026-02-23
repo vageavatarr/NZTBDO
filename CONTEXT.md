@@ -205,3 +205,22 @@ Current repository workspace contains:
 - `CONTEXT.md` (this preserved requirement and architecture context).
 
 This baseline is ready to be committed as project planning foundation.
+
+## 15. Primary Visual Labeling Rules (User-Confirmed)
+
+These rules are required for initial supervised labeling:
+
+1. Aggro indicator:
+- Monsters that are engaged/aggroed are marked by a yellow exclamation sign above them.
+- Presence of yellow exclamation marks should be treated as high-priority aggro signal for combat entry.
+
+2. Player anchor:
+- Controlled character is expected near screen center.
+- Character identity can be stabilized by two bars above the character head (HP/resource bars).
+- This anchor should be used for relative enemy geometry features (`front`, `near`, `left`, `right`).
+
+3. First-pass annotation implication:
+- For each frame/tick, count:
+  - enemies with yellow exclamation marks near player,
+  - enemies with yellow exclamation marks in front cone.
+- Use these counts as primary labels for early combat policy data.
