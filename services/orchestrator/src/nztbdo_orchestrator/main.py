@@ -107,6 +107,11 @@ class Orchestrator:
     def thresholds_path(self) -> Path:
         return self._cfg.thresholds_path
 
+    def write_runtime_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        event = dict(payload)
+        event["event_type"] = event_type
+        self._logger.write_event(event)
+
     def start(self) -> None:
         if self.state == FSMState.IDLE:
             self.state = FSMState.PATROL

@@ -61,6 +61,9 @@ class RuntimeLoop:
         self._paused_by_guard = False
         self._had_enemies = False
         self._last_runtime_state: RuntimeState | None = None
+        self._capture_started_logged = False
+        self._frames_captured = 0
+        self._keyboard_actions_logged = 0
 
         self._raw_session_dir = _ROOT / "data" / "raw" / self.orchestrator.session_id
         self._frames_dir = self._raw_session_dir / "frames"
@@ -186,6 +189,19 @@ class RuntimeLoop:
             prefix="frame",
             index=self.tick_index,
         )
+        self._frames_captured += 1
+        if not self._capture_started_logged:
+            self._capture_started_logged = True
+            self.orchestrator.write_runtime_event(
+                "capture_started",
+                {
+                    "timestamp_ms": int(time.time() * 1000),
+                    "frame_id": frame.frame_id,
+                    "frame_path": frame.path,
+                    "frames_dir": str(self._frames_dir),
+                    "monitor_rect": self.capture.primary_monitor,
+                },
+            )
         self._telemetry.record_frame_meta(
             frame_id=frame.frame_id,
             width=frame.width,
@@ -217,6 +233,7 @@ class RuntimeLoop:
             },
         )
         result = self.orchestrator.tick(tick_input)
+        self._record_keyboard_action(result, window_check)
         self._telemetry.record_window(
             title=window_check.title or "Unknown",
             process=window_check.process_name or "unknown.exe",
@@ -283,6 +300,36 @@ class RuntimeLoop:
             "allowed_window_titles": [str(v) for v in titles if str(v).strip()],
             "allowed_process_names": [str(v) for v in processes if str(v).strip()],
         }
+
+    def _record_keyboard_action(self, result: TickResult, window_check: WindowCheck) -> None:
+        action = result.action
+        if not action.startswith("press_"):
+            return
+        key = action.removeprefix("press_")
+        if key not in {"1", "2", "3", "4"}:
+            return
+
+        # Store attempt in session events, including blocked/rate-limited reasons.
+        self.orchestrator.write_runtime_event(
+            "keyboard_action",
+            {
+                "timestamp_ms": int(time.time() * 1000),
+                "tick_index": self.tick_index,
+                "key": key,
+                "action": action,
+                "performed": bool(result.execution.performed),
+                "execution_reason": result.execution.reason,
+                "window_allowed": bool(window_check.allowed),
+                "window_title": window_check.title,
+                "window_process": window_check.process_name,
+            },
+        )
+
+        # Store low-level key down/up events when emission actually happened.
+        if result.execution.performed:
+            self._telemetry.record_keyboard(key=key, event_type="down")
+            self._telemetry.record_keyboard(key=key, event_type="up")
+            self._keyboard_actions_logged += 1
 
 
 def run(
@@ -371,6 +418,13 @@ def run(
         "window_guard_constraints": {
             "titles": loop.window_guard.allowed_titles,
             "processes": loop.window_guard.allowed_processes,
+        },
+        "capture": {
+            "frames_captured": loop._frames_captured,
+            "capture_started": loop._capture_started_logged,
+        },
+        "keyboard": {
+            "actions_logged": loop._keyboard_actions_logged,
         },
     }
     summary_path = Path(loop.orchestrator.events_path).with_name("runtime_summary.json")

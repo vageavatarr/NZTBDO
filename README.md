@@ -95,6 +95,9 @@ python -m nztbdo_orchestrator.runtime_loop
 Runtime perception settings are configured in `shared/config/thresholds.yaml` under `perception.runtime`.
 If `ultralytics` is available and `model_path` exists, YOLO backend is used; otherwise fallback stub is used.
 Runtime perception includes a tracking layer for stable target IDs across frames (`avg_tracks_per_tick` in runtime summary).
+Keyboard actions (`press_1..4`) are now logged as `keyboard_action` events in `events.jsonl` (including blocked/rate-limited attempts).
+Low-level key telemetry (`down`/`up`) is written to `data/raw/<session_id>/chunk_*.jsonl`.
+Screenshot capture starts on the first unpaused tick with allowed game window; this is marked by `capture_started` in `events.jsonl`.
 
 Model readiness preflight:
 
