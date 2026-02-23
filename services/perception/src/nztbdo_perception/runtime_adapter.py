@@ -1,7 +1,74 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+@dataclass(frozen=True)
+class TrackedPoint:
+    track_id: int
+    x: float
+    y: float
+
+
+class WorldPointTracker:
+    """Simple nearest-neighbor tracker for stable IDs across frames."""
+
+    def __init__(self, match_distance: float = 2.0, max_missed: int = 6, smoothing: float = 0.35) -> None:
+        self._match_distance = max(match_distance, 0.01)
+        self._max_missed = max(max_missed, 1)
+        self._smoothing = min(max(smoothing, 0.0), 1.0)
+        self._next_id = 1
+        self._tracks: dict[int, dict[str, float]] = {}
+
+    def update(self, detections: list[tuple[float, float]]) -> list[TrackedPoint]:
+        for state in self._tracks.values():
+            state["missed"] += 1.0
+            state["updated"] = 0.0
+
+        assigned: set[int] = set()
+        for det_x, det_y in detections:
+            best_id = -1
+            best_dist = self._match_distance
+            for track_id, state in self._tracks.items():
+                if track_id in assigned:
+                    continue
+                dist = _dist(det_x, det_y, state["x"], state["y"])
+                if dist <= best_dist:
+                    best_dist = dist
+                    best_id = track_id
+
+            if best_id == -1:
+                self._tracks[self._next_id] = {
+                    "x": det_x,
+                    "y": det_y,
+                    "missed": 0.0,
+                    "updated": 1.0,
+                }
+                assigned.add(self._next_id)
+                self._next_id += 1
+                continue
+
+            state = self._tracks[best_id]
+            alpha = self._smoothing
+            state["x"] = (1.0 - alpha) * state["x"] + alpha * det_x
+            state["y"] = (1.0 - alpha) * state["y"] + alpha * det_y
+            state["missed"] = 0.0
+            state["updated"] = 1.0
+            assigned.add(best_id)
+
+        to_delete = [track_id for track_id, state in self._tracks.items() if state["missed"] > self._max_missed]
+        for track_id in to_delete:
+            del self._tracks[track_id]
+
+        updated_tracks = [
+            TrackedPoint(track_id=track_id, x=state["x"], y=state["y"])
+            for track_id, state in self._tracks.items()
+            if state.get("updated", 0.0) > 0.0
+        ]
+        updated_tracks.sort(key=lambda item: item.track_id)
+        return updated_tracks
 
 
 class RuntimePerceptionAdapter:
@@ -23,6 +90,8 @@ class RuntimePerceptionAdapter:
         self._max_targets = max_targets
         self._enemy_class_ids = set(enemy_class_ids or [])
         self._yolo_model: Any | None = None
+        self._tracker = WorldPointTracker()
+        self._last_track_ids: list[int] = []
 
         if backend in {"auto", "ultralytics"}:
             self._try_init_yolo(model_path)
@@ -30,6 +99,10 @@ class RuntimePerceptionAdapter:
     @property
     def backend(self) -> str:
         return self._backend
+
+    @property
+    def last_track_ids(self) -> list[int]:
+        return list(self._last_track_ids)
 
     def detect_enemy_points(
         self,
@@ -42,12 +115,27 @@ class RuntimePerceptionAdapter:
         if not path.exists():
             return []
 
+        raw_points: list[tuple[float, float]]
         if self._yolo_model is not None:
             yolo_points = self._detect_with_yolo(path, player_x, player_y)
             if yolo_points is not None:
-                return yolo_points
+                raw_points = yolo_points
+            else:
+                raw_points = self._detect_with_stub(path, player_x, player_y)
+        else:
+            raw_points = self._detect_with_stub(path, player_x, player_y)
 
-        size = path.stat().st_size
+        tracks = self._tracker.update(raw_points)
+        self._last_track_ids = [item.track_id for item in tracks]
+        return [(item.x, item.y) for item in tracks]
+
+    def _detect_with_stub(
+        self,
+        frame_path: Path,
+        player_x: float,
+        player_y: float,
+    ) -> list[tuple[float, float]]:
+        size = frame_path.stat().st_size
         pack = int(size % 5)
         if pack == 0:
             return []
@@ -161,3 +249,9 @@ def _project_to_world(
     forward_m = max(1.0, (1.0 - (cy / max(frame_h, 1.0))) * 12.0)
     lateral_m = dx_pixels * pixel_to_meter
     return player_x + forward_m, player_y + lateral_m
+
+
+def _dist(ax: float, ay: float, bx: float, by: float) -> float:
+    dx = ax - bx
+    dy = ay - by
+    return (dx * dx + dy * dy) ** 0.5

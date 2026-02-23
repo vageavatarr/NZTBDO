@@ -34,6 +34,7 @@ class RuntimeState:
     window_process: str
     window_allowed: bool
     window_reason: str
+    track_ids: list[int]
 
 
 class RuntimeLoop:
@@ -95,6 +96,7 @@ class RuntimeLoop:
             window_process="",
             window_allowed=False,
             window_reason="panic",
+            track_ids=[],
         )
         self._last_runtime_state = state
         self.stop()
@@ -122,6 +124,7 @@ class RuntimeLoop:
                 window_process=window_check.process_name,
                 window_allowed=window_check.allowed,
                 window_reason="guard_pause" if self._paused_by_guard else "paused",
+                track_ids=[],
             )
             self._last_runtime_state = state
             return state
@@ -144,6 +147,7 @@ class RuntimeLoop:
                 window_process=window_check.process_name,
                 window_allowed=False,
                 window_reason=window_check.reason,
+                track_ids=[],
             )
             self._last_runtime_state = state
             return state
@@ -202,6 +206,7 @@ class RuntimeLoop:
             window_process=window_check.process_name,
             window_allowed=window_check.allowed,
             window_reason=window_check.reason,
+            track_ids=self.perception.last_track_ids,
         )
         self._last_runtime_state = state
         return state
@@ -261,6 +266,7 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
     actions = Counter()
     execution_reasons = Counter()
     total_enemies = 0
+    total_tracks = 0
 
     started = time.time()
     for _ in range(ticks):
@@ -271,6 +277,7 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         actions[state.result.action] += 1
         execution_reasons[state.result.execution.reason] += 1
         total_enemies += state.enemies_detected
+        total_tracks += len(state.track_ids)
         if not state.window_allowed:
             execution_reasons["window_guard_blocked"] += 1
 
@@ -296,6 +303,7 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         "execution_reasons": dict(execution_reasons),
         "perception_backend": loop.perception.backend,
         "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
+        "avg_tracks_per_tick": round(total_tracks / max(ticks, 1), 3),
         "window_guard_constraints": {
             "titles": loop.window_guard.allowed_titles,
             "processes": loop.window_guard.allowed_processes,
