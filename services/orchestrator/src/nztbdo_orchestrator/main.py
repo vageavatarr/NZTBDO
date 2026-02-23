@@ -103,6 +103,10 @@ class Orchestrator:
     def events_path(self) -> Path:
         return self._logger.events_path
 
+    @property
+    def thresholds_path(self) -> Path:
+        return self._cfg.thresholds_path
+
     def start(self) -> None:
         if self.state == FSMState.IDLE:
             self.state = FSMState.PATROL

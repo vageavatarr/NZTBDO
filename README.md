@@ -80,6 +80,9 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.runtime_loop
 ```
 
+Runtime perception settings are configured in `shared/config/thresholds.yaml` under `perception.runtime`.
+If `ultralytics` is available and `model_path` exists, YOLO backend is used; otherwise fallback stub is used.
+
 ## Real Input Mode (Windows)
 
 `services/input-control` now supports real key emission (`1-4`) via `SendInput`.

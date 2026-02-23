@@ -5,6 +5,13 @@ perception:
   near_radius_m: 8.0
   front_cone_angle_deg: 90
   front_cone_range_m: 7.0
+  runtime:
+    detector_backend: auto
+    model_path: data/models/enemy_detector.pt
+    confidence_min: 0.45
+    pixel_to_meter: 0.01
+    max_targets: 8
+    enemy_class_ids: []
 
 combat:
   clear_timeout_sec: 2.5

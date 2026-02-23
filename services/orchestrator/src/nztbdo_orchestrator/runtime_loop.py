@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 import time
+from typing import Any
 
 from nztbdo_orchestrator.main import Orchestrator, TickInput, TickResult
 
@@ -32,7 +33,15 @@ class RuntimeState:
 class RuntimeLoop:
     def __init__(self, profile_name: str = "default") -> None:
         self.orchestrator = Orchestrator(profile_name=profile_name)
-        self.perception = RuntimePerceptionAdapter()
+        self._runtime_cfg = self._read_runtime_perception_cfg()
+        self.perception = RuntimePerceptionAdapter(
+            backend=str(self._runtime_cfg["detector_backend"]),
+            model_path=str(self._runtime_cfg["model_path"]),
+            confidence_min=float(self._runtime_cfg["confidence_min"]),
+            pixel_to_meter=float(self._runtime_cfg["pixel_to_meter"]),
+            max_targets=int(self._runtime_cfg["max_targets"]),
+            enemy_class_ids=list(self._runtime_cfg["enemy_class_ids"]),
+        )
         self.capture = PrimaryMonitorCapture()
         self.tick_index = 0
         self._running = False
@@ -146,6 +155,32 @@ class RuntimeLoop:
     def last_runtime_state(self) -> RuntimeState | None:
         return self._last_runtime_state
 
+    def _read_runtime_perception_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self.orchestrator.thresholds_path)
+        perception_cfg = cfg.get("perception")
+        if not isinstance(perception_cfg, dict):
+            perception_cfg = {}
+        runtime_cfg = perception_cfg.get("runtime")
+        if not isinstance(runtime_cfg, dict):
+            runtime_cfg = {}
+
+        enemy_ids = runtime_cfg.get("enemy_class_ids", [])
+        if not isinstance(enemy_ids, list):
+            enemy_ids = []
+        cleaned_enemy_ids = [int(item) for item in enemy_ids if isinstance(item, (int, float))]
+
+        model_path = str(runtime_cfg.get("model_path", ""))
+        model_abs = str((_ROOT / model_path).resolve()) if model_path else ""
+
+        return {
+            "detector_backend": runtime_cfg.get("detector_backend", "auto"),
+            "model_path": model_abs,
+            "confidence_min": runtime_cfg.get("confidence_min", 0.45),
+            "pixel_to_meter": runtime_cfg.get("pixel_to_meter", 0.01),
+            "max_targets": runtime_cfg.get("max_targets", 8),
+            "enemy_class_ids": cleaned_enemy_ids,
+        }
+
 
 def main() -> None:
     loop = RuntimeLoop(profile_name="default")
@@ -162,7 +197,26 @@ def main() -> None:
         time.sleep(0.05)
     elapsed = time.time() - started
     loop.stop()
-    print(f"runtime_elapsed_sec={elapsed:.2f} session={loop.orchestrator.session_id}")
+    print(
+        f"runtime_elapsed_sec={elapsed:.2f} session={loop.orchestrator.session_id} "
+        f"perception_backend={loop.perception.backend}"
+    )
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    try:
+        import yaml  # type: ignore
+    except ImportError:
+        return {}
+    if not path.exists():
+        return {}
+    try:
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if isinstance(loaded, dict):
+        return loaded
+    return {}
 
 
 if __name__ == "__main__":
