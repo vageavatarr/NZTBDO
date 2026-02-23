@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import Counter
 from pathlib import Path
 import sys
 import time
@@ -182,25 +183,55 @@ class RuntimeLoop:
         }
 
 
-def main() -> None:
-    loop = RuntimeLoop(profile_name="default")
+def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) -> dict[str, Any]:
+    loop = RuntimeLoop(profile_name=profile_name)
     loop.start()
+    states = Counter()
+    actions = Counter()
+    execution_reasons = Counter()
+    total_enemies = 0
+
     started = time.time()
-    for _ in range(60):
+    for _ in range(ticks):
         state = loop.step()
         if state is None:
             break
-        print(
-            f"tick={state.tick_index} state={state.result.state.value} "
-            f"action={state.result.action} enemies={state.enemies_detected}"
-        )
-        time.sleep(0.05)
-    elapsed = time.time() - started
+        states[state.result.state.value] += 1
+        actions[state.result.action] += 1
+        execution_reasons[state.result.execution.reason] += 1
+        total_enemies += state.enemies_detected
+
+        if verbose:
+            print(
+                f"tick={state.tick_index} state={state.result.state.value} "
+                f"action={state.result.action} enemies={state.enemies_detected}"
+            )
+        time.sleep(tick_sleep)
+
+    elapsed = max(time.time() - started, 0.001)
     loop.stop()
-    print(
-        f"runtime_elapsed_sec={elapsed:.2f} session={loop.orchestrator.session_id} "
-        f"perception_backend={loop.perception.backend}"
-    )
+    summary = {
+        "profile": profile_name,
+        "session_id": loop.orchestrator.session_id,
+        "events_path": str(loop.orchestrator.events_path),
+        "ticks": ticks,
+        "elapsed_sec": round(elapsed, 3),
+        "tps": round(ticks / elapsed, 2),
+        "states": dict(states),
+        "actions": dict(actions),
+        "execution_reasons": dict(execution_reasons),
+        "perception_backend": loop.perception.backend,
+        "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
+    }
+    summary_path = Path(loop.orchestrator.events_path).with_name("runtime_summary.json")
+    summary_path.write_text(str(_to_pretty_json(summary)), encoding="utf-8")
+    summary["runtime_summary_path"] = str(summary_path)
+    return summary
+
+
+def main() -> None:
+    summary = run(profile_name="default", ticks=60, tick_sleep=0.05, verbose=True)
+    print(_to_compact_json(summary))
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -217,6 +248,18 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     if isinstance(loaded, dict):
         return loaded
     return {}
+
+
+def _to_pretty_json(data: dict[str, Any]) -> str:
+    import json
+
+    return json.dumps(data, ensure_ascii=True, indent=2)
+
+
+def _to_compact_json(data: dict[str, Any]) -> str:
+    import json
+
+    return json.dumps(data, ensure_ascii=True)
 
 
 if __name__ == "__main__":

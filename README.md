@@ -83,6 +83,22 @@ python -m nztbdo_orchestrator.runtime_loop
 Runtime perception settings are configured in `shared/config/thresholds.yaml` under `perception.runtime`.
 If `ultralytics` is available and `model_path` exists, YOLO backend is used; otherwise fallback stub is used.
 
+## Full Session Pipeline (Runtime -> Labeling -> Training)
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.run_session --profile default --ticks 300 --tick-sleep 0.05
+```
+
+Outputs:
+- runtime logs: `data/logs/<session_id>/events.jsonl`
+- runtime summary: `data/logs/<session_id>/runtime_summary.json`
+- session pipeline summary: `data/logs/<session_id>/session_pipeline_summary.json`
+- labels: `data/labels/<session_id>/episodes.jsonl`
+- dataset: `data/processed/dataset_v1.jsonl`
+- metrics: `data/processed/metrics_v1.json`
+
 ## Real Input Mode (Windows)
 
 `services/input-control` now supports real key emission (`1-4`) via `SendInput`.
