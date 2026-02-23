@@ -21,6 +21,10 @@ _NAV_SRC = _ROOT / "services" / "navigation" / "src"
 if str(_NAV_SRC) not in sys.path:
     sys.path.insert(0, str(_NAV_SRC))
 
+_PERCEPTION_SRC = _ROOT / "services" / "perception" / "src"
+if str(_PERCEPTION_SRC) not in sys.path:
+    sys.path.insert(0, str(_PERCEPTION_SRC))
+
 from nztbdo_combat.selector import CombatSnapshot, Decision, load_selector_from_yaml
 _CAPTURE_SRC = _ROOT / "services" / "capture" / "src"
 if str(_CAPTURE_SRC) not in sys.path:
@@ -29,6 +33,7 @@ if str(_CAPTURE_SRC) not in sys.path:
 from nztbdo_capture.session_logger import SessionLogger
 from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
 from nztbdo_navigation.route_runner import NavigationStatus, load_route_runner_from_yaml
+from nztbdo_perception.spatial import EnemyPoint, compute_spatial_features
 
 
 class FSMState(str, Enum):
@@ -54,6 +59,8 @@ class TickInput:
     skill_cd: dict[str, float] | None = None
     pos_x: float = 0.0
     pos_y: float = 0.0
+    heading_deg: float = 0.0
+    enemy_points: list[tuple[float, float]] | None = None
 
 
 @dataclass
@@ -76,6 +83,7 @@ class Orchestrator:
             _ROOT / "shared" / "config" / "route.yaml",
             stuck_timeout_sec=float(self._read_stuck_timeout_sec()),
         )
+        self._perception_cfg = self._read_perception_cfg()
 
     def start(self) -> None:
         if self.state == FSMState.IDLE:
@@ -83,6 +91,7 @@ class Orchestrator:
 
     def tick(self, inp: TickInput) -> TickResult:
         cooldowns = inp.skill_cd or {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0}
+        enemies_total_near, enemies_in_front = self._resolve_enemy_features(inp)
 
         if inp.panic:
             self.state = FSMState.PANIC_STOP
@@ -133,7 +142,7 @@ class Orchestrator:
             return result
 
         if self.state == FSMState.PATROL:
-            if inp.enemies_total_near > 0:
+            if enemies_total_near > 0:
                 self.state = FSMState.ENGAGE_CHECK
 
         elif self.state == FSMState.ENGAGE_CHECK:
@@ -155,8 +164,8 @@ class Orchestrator:
         if self.state == FSMState.COMBAT:
             decision = self._combat_selector.decide(
                 CombatSnapshot(
-                    enemies_total_near=inp.enemies_total_near,
-                    enemies_in_front=inp.enemies_in_front,
+                    enemies_total_near=enemies_total_near,
+                    enemies_in_front=enemies_in_front,
                     skill_cd=cooldowns,
                 )
             )
@@ -225,6 +234,41 @@ class Orchestrator:
             return float(value)
         return 6.0
 
+    @staticmethod
+    def _read_perception_cfg() -> dict[str, float]:
+        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+        perception_cfg = cfg.get("perception")
+        if not isinstance(perception_cfg, dict):
+            return {
+                "near_radius_m": 8.0,
+                "front_cone_angle_deg": 90.0,
+                "front_cone_range_m": 7.0,
+            }
+        near = perception_cfg.get("near_radius_m", 8.0)
+        angle = perception_cfg.get("front_cone_angle_deg", 90.0)
+        rng = perception_cfg.get("front_cone_range_m", 7.0)
+        return {
+            "near_radius_m": float(near),
+            "front_cone_angle_deg": float(angle),
+            "front_cone_range_m": float(rng),
+        }
+
+    def _resolve_enemy_features(self, inp: TickInput) -> tuple[int, int]:
+        if not inp.enemy_points:
+            return inp.enemies_total_near, inp.enemies_in_front
+
+        enemies = [EnemyPoint(x=item[0], y=item[1]) for item in inp.enemy_points]
+        features = compute_spatial_features(
+            player_x=inp.pos_x,
+            player_y=inp.pos_y,
+            heading_deg=inp.heading_deg,
+            enemies=enemies,
+            near_radius_m=self._perception_cfg["near_radius_m"],
+            front_cone_angle_deg=self._perception_cfg["front_cone_angle_deg"],
+            front_cone_range_m=self._perception_cfg["front_cone_range_m"],
+        )
+        return features.enemies_total_near, features.enemies_in_front
+
     def _log_tick(self, inp: TickInput, result: TickResult) -> None:
         self._logger.write_tick(
             timestamp_ms=int(time.time() * 1000),
@@ -266,22 +310,28 @@ def demo() -> None:
     orchestrator.start()
 
     timeline = [
-        TickInput(),
-        TickInput(enemies_total_near=3, engage_confidence=0.7, pos_x=2.0, pos_y=1.0),
+        TickInput(pos_x=0.0, pos_y=0.0),
         TickInput(
-            enemies_total_near=5,
-            enemies_in_front=4,
+            engage_confidence=0.7,
+            pos_x=2.0,
+            pos_y=1.0,
+            heading_deg=0.0,
+            enemy_points=[(5.0, 1.2), (6.3, 0.5), (4.8, 2.5)],
+        ),
+        TickInput(
             engage_confidence=0.8,
             skill_cd={"1": 0.0, "2": 0.0, "3": 0.0, "4": 7.0},
             pos_x=3.0,
             pos_y=1.0,
+            heading_deg=0.0,
+            enemy_points=[(6.0, 1.0), (6.5, 2.0), (7.0, 0.8), (7.2, 1.2), (3.1, 8.0)],
         ),
         TickInput(
-            enemies_total_near=2,
-            enemies_in_front=0,
             skill_cd={"1": 5.0, "2": 7.0, "3": 0.0, "4": 6.0},
             pos_x=3.0,
             pos_y=1.0,
+            heading_deg=0.0,
+            enemy_points=[(2.5, 4.5), (2.0, 4.8)],
         ),
         TickInput(combat_clear=True, pos_x=34.0, pos_y=4.2),
         TickInput(pos_x=35.1, pos_y=4.1),
