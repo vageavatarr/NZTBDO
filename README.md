@@ -93,6 +93,14 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.model_preflight --profile live_farm
 ```
 
+Threshold patch suggestion from latest calibration report (does not modify files):
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.suggest_threshold_patch --profile live_farm --write-patch ../../data/logs/latest_thresholds_suggestion.patch
+```
+
 ## Full Session Pipeline (Runtime -> Labeling -> Training)
 
 ```powershell
