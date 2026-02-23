@@ -25,3 +25,4 @@ navigation:
 input_control:
   dry_run: true
   allowed_window_titles: []
+  allowed_process_names: []

@@ -21,6 +21,7 @@ if str(_PERCEPTION_SRC) not in sys.path:
 from nztbdo_capture.input_recorder import InputTelemetryRecorder
 from nztbdo_capture.screen_capture import PrimaryMonitorCapture
 from nztbdo_perception.runtime_adapter import RuntimePerceptionAdapter
+from nztbdo_orchestrator.window_guard import WindowCheck, WindowGuard
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,10 @@ class RuntimeState:
     frame_path: str
     enemies_detected: int
     result: TickResult
+    window_title: str
+    window_process: str
+    window_allowed: bool
+    window_reason: str
 
 
 class RuntimeLoop:
@@ -44,9 +49,15 @@ class RuntimeLoop:
             enemy_class_ids=list(self._runtime_cfg["enemy_class_ids"]),
         )
         self.capture = PrimaryMonitorCapture()
+        input_cfg = self._read_input_control_cfg()
+        self.window_guard = WindowGuard(
+            allowed_titles=list(input_cfg["allowed_window_titles"]),
+            allowed_processes=list(input_cfg["allowed_process_names"]),
+        )
         self.tick_index = 0
         self._running = False
         self._paused = False
+        self._paused_by_guard = False
         self._had_enemies = False
         self._last_runtime_state: RuntimeState | None = None
 
@@ -57,15 +68,18 @@ class RuntimeLoop:
     def start(self) -> None:
         self._running = True
         self._paused = False
+        self._paused_by_guard = False
         self.orchestrator.start()
 
     def pause(self) -> None:
         if self._running:
             self._paused = True
+            self._paused_by_guard = False
 
     def stop(self) -> None:
         self._running = False
         self._paused = False
+        self._paused_by_guard = False
         self.orchestrator.stop()
         self.capture.close()
         self._telemetry.close()
@@ -77,6 +91,10 @@ class RuntimeLoop:
             frame_path="",
             enemies_detected=0,
             result=result,
+            window_title="",
+            window_process="",
+            window_allowed=False,
+            window_reason="panic",
         )
         self._last_runtime_state = state
         self.stop()
@@ -87,13 +105,45 @@ class RuntimeLoop:
             return None
 
         self.tick_index += 1
+        window_check = self.window_guard.check()
         if self._paused:
             result = self.orchestrator.tick(TickInput(paused=True))
+            self._telemetry.record_window(
+                title=window_check.title or "Unknown",
+                process=window_check.process_name or "unknown.exe",
+                rect=self.capture.primary_monitor,
+            )
             state = RuntimeState(
                 tick_index=self.tick_index,
                 frame_path="",
                 enemies_detected=0,
                 result=result,
+                window_title=window_check.title,
+                window_process=window_check.process_name,
+                window_allowed=window_check.allowed,
+                window_reason="guard_pause" if self._paused_by_guard else "paused",
+            )
+            self._last_runtime_state = state
+            return state
+
+        if not window_check.allowed:
+            self._paused = True
+            self._paused_by_guard = True
+            result = self.orchestrator.tick(TickInput(paused=True))
+            self._telemetry.record_window(
+                title=window_check.title or "Unknown",
+                process=window_check.process_name or "unknown.exe",
+                rect=self.capture.primary_monitor,
+            )
+            state = RuntimeState(
+                tick_index=self.tick_index,
+                frame_path="",
+                enemies_detected=0,
+                result=result,
+                window_title=window_check.title,
+                window_process=window_check.process_name,
+                window_allowed=False,
+                window_reason=window_check.reason,
             )
             self._last_runtime_state = state
             return state
@@ -138,8 +188,8 @@ class RuntimeLoop:
         )
         result = self.orchestrator.tick(tick_input)
         self._telemetry.record_window(
-            title="Unknown",
-            process="unknown.exe",
+            title=window_check.title or "Unknown",
+            process=window_check.process_name or "unknown.exe",
             rect=self.capture.primary_monitor,
         )
 
@@ -148,6 +198,10 @@ class RuntimeLoop:
             frame_path=frame.path,
             enemies_detected=len(enemies),
             result=result,
+            window_title=window_check.title,
+            window_process=window_check.process_name,
+            window_allowed=window_check.allowed,
+            window_reason=window_check.reason,
         )
         self._last_runtime_state = state
         return state
@@ -182,6 +236,23 @@ class RuntimeLoop:
             "enemy_class_ids": cleaned_enemy_ids,
         }
 
+    def _read_input_control_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self.orchestrator.thresholds_path)
+        input_cfg = cfg.get("input_control")
+        if not isinstance(input_cfg, dict):
+            return {"allowed_window_titles": [], "allowed_process_names": []}
+
+        titles = input_cfg.get("allowed_window_titles", [])
+        processes = input_cfg.get("allowed_process_names", [])
+        if not isinstance(titles, list):
+            titles = []
+        if not isinstance(processes, list):
+            processes = []
+        return {
+            "allowed_window_titles": [str(v) for v in titles if str(v).strip()],
+            "allowed_process_names": [str(v) for v in processes if str(v).strip()],
+        }
+
 
 def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) -> dict[str, Any]:
     loop = RuntimeLoop(profile_name=profile_name)
@@ -200,11 +271,14 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         actions[state.result.action] += 1
         execution_reasons[state.result.execution.reason] += 1
         total_enemies += state.enemies_detected
+        if not state.window_allowed:
+            execution_reasons["window_guard_blocked"] += 1
 
         if verbose:
             print(
                 f"tick={state.tick_index} state={state.result.state.value} "
-                f"action={state.result.action} enemies={state.enemies_detected}"
+                f"action={state.result.action} enemies={state.enemies_detected} "
+                f"window_allowed={state.window_allowed}"
             )
         time.sleep(tick_sleep)
 
@@ -222,6 +296,10 @@ def run(profile_name: str, ticks: int, tick_sleep: float, verbose: bool = True) 
         "execution_reasons": dict(execution_reasons),
         "perception_backend": loop.perception.backend,
         "avg_enemies_detected_per_tick": round(total_enemies / max(ticks, 1), 3),
+        "window_guard_constraints": {
+            "titles": loop.window_guard.allowed_titles,
+            "processes": loop.window_guard.allowed_processes,
+        },
     }
     summary_path = Path(loop.orchestrator.events_path).with_name("runtime_summary.json")
     summary_path.write_text(str(_to_pretty_json(summary)), encoding="utf-8")

@@ -71,6 +71,7 @@ Controls:
 
 The UI includes a profile selector populated from `shared/config/profiles/*.yaml`.
 UI `Start` now runs the runtime pipeline: primary monitor capture -> perception adapter -> orchestrator -> input executor.
+If window guard constraints are set and active window/process does not match, runtime auto-pauses.
 
 ## Runtime Loop (Headless)
 
@@ -105,7 +106,8 @@ Outputs:
 
 Configure in `shared/config/thresholds.yaml`:
 - `input_control.dry_run: false` to enable real key presses
-- `input_control.allowed_window_titles: [...]` to restrict key emission to target window titles
+- `input_control.allowed_window_titles: [...]` to restrict by foreground window title
+- `input_control.allowed_process_names: [...]` to restrict by foreground process name
 
 ## Capture Demo (Chunked Telemetry)
 

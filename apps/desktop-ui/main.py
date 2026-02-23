@@ -66,6 +66,10 @@ class DesktopUI:
         self.profile_id_var = tk.StringVar(value=self.runtime.orchestrator.profile_id)
         self.frame_var = tk.StringVar(value="-")
         self.enemies_var = tk.StringVar(value="0")
+        self.backend_var = tk.StringVar(value=self.runtime.perception.backend)
+        self.window_var = tk.StringVar(value="-")
+        self.process_var = tk.StringVar(value="-")
+        self.guard_var = tk.StringVar(value="ok")
 
         info = ttk.Frame(container)
         info.pack(fill=tk.BOTH, expand=True)
@@ -77,6 +81,10 @@ class DesktopUI:
         self._row(info, "Profile", self.profile_id_var)
         self._row(info, "Frame", self.frame_var)
         self._row(info, "Enemies", self.enemies_var)
+        self._row(info, "Backend", self.backend_var)
+        self._row(info, "Window", self.window_var)
+        self._row(info, "Process", self.process_var)
+        self._row(info, "Guard", self.guard_var)
 
         status = ttk.Label(
             container,
@@ -123,6 +131,10 @@ class DesktopUI:
         self.profile_id_var.set(self.runtime.orchestrator.profile_id)
         self.frame_var.set("-")
         self.enemies_var.set("0")
+        self.backend_var.set(self.runtime.perception.backend)
+        self.window_var.set("-")
+        self.process_var.set("-")
+        self.guard_var.set("ok")
 
     def panic_stop(self) -> None:
         self.panic = True
@@ -153,6 +165,10 @@ class DesktopUI:
         self.profile_id_var.set(self.runtime.orchestrator.profile_id)
         self.frame_var.set(state.frame_path if state.frame_path else "-")
         self.enemies_var.set(str(state.enemies_detected))
+        self.backend_var.set(self.runtime.perception.backend)
+        self.window_var.set(state.window_title if state.window_title else "-")
+        self.process_var.set(state.window_process if state.window_process else "-")
+        self.guard_var.set("ok" if state.window_allowed else f"blocked ({state.window_reason})")
 
         if result.state.value == "PANIC_STOP":
             self.running = False
@@ -174,6 +190,10 @@ class DesktopUI:
         self.profile_id_var.set(self.runtime.orchestrator.profile_id)
         self.frame_var.set("-")
         self.enemies_var.set("0")
+        self.backend_var.set(self.runtime.perception.backend)
+        self.window_var.set("-")
+        self.process_var.set("-")
+        self.guard_var.set("ok")
 
 
 def main() -> None:
