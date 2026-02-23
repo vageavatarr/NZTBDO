@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -133,6 +134,13 @@ public sealed class MainForm : Form
     {
         if (_process is not null || _repoRoot is null)
         {
+            return;
+        }
+
+        if (!IsAdministrator())
+        {
+            AppendOutput("[ERR] Admin rights required. Restart the UI with Run as administrator.");
+            _statusValue.Text = "Admin required";
             return;
         }
 
@@ -519,5 +527,12 @@ public sealed class MainForm : Form
         {
             // Non-fatal: best-effort cleanup.
         }
+    }
+
+    private static bool IsAdministrator()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 }
