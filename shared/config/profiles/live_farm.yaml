@@ -1,0 +1,7 @@
+version: 1
+profile_id: live_farm
+config:
+  skills: shared/config/skills.yaml
+  route: shared/config/route.yaml
+  thresholds: shared/config/thresholds_live_farm.yaml
+  hotkeys: shared/config/hotkeys.yaml

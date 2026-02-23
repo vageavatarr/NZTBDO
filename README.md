@@ -93,6 +93,14 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.run_session --profile default --ticks 300 --tick-sleep 0.05
 ```
 
+Live profile run:
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.run_session --profile live_farm --ticks 300 --tick-sleep 0.05
+```
+
 Outputs:
 - runtime logs: `data/logs/<session_id>/events.jsonl`
 - runtime summary: `data/logs/<session_id>/runtime_summary.json`
@@ -110,6 +118,10 @@ Configure in `shared/config/thresholds.yaml`:
 - `input_control.dry_run: false` to enable real key presses
 - `input_control.allowed_window_titles: [...]` to restrict by foreground window title
 - `input_control.allowed_process_names: [...]` to restrict by foreground process name
+
+For live profile, update placeholders in `shared/config/thresholds_live_farm.yaml`:
+- `allowed_window_titles: ["GameWindow"]`
+- `allowed_process_names: ["game.exe"]`
 
 ## Capture Demo (Chunked Telemetry)
 
