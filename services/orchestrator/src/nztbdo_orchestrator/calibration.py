@@ -44,9 +44,13 @@ def generate_calibration_report(
     avg_conf = float(detection.get("avg_confidence", 0.0))
     min_conf = float(detection.get("min_confidence", 0.0))
     max_conf = float(detection.get("max_confidence", 0.0))
+    raw_total = int(detection.get("raw_detections_total", 0))
     current_conf_min = float(runtime_cfg.get("confidence_min", 0.45))
-    if backend == "ultralytics":
+    if backend == "ultralytics" and raw_total >= 20:
         recommended_conf_min = round(max(0.25, min(0.85, avg_conf - 0.10)), 2)
+    elif backend == "ultralytics" and raw_total < 20:
+        recommended_conf_min = current_conf_min
+        findings.append("Insufficient detections for confidence_min tuning; keep current value.")
     else:
         recommended_conf_min = current_conf_min
 
