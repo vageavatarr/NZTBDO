@@ -296,7 +296,7 @@ Operational risks and mitigations:
 
 ## 12) Delivery Phases (Detailed)
 
-## Phase 0 - Project Bootstrap (Week 1)
+## Phase 0 - Project Bootstrap (Week 1) [Status: Done]
 Deliverables:
 - repo scaffold,
 - coding standards, lint/test setup,
@@ -308,7 +308,7 @@ Acceptance:
 - hotkeys registered,
 - start/pause/stop state transitions visible.
 
-## Phase 1 - Capture + Logging Foundation (Week 1-2)
+## Phase 1 - Capture + Logging Foundation (Week 1-2) [Status: In Progress]
 Deliverables:
 - screen capture pipeline,
 - keyboard/mouse telemetry capture,
@@ -320,7 +320,7 @@ Acceptance:
 - chunk integrity checks pass,
 - replay tool can read session stream.
 
-## Phase 2 - Perception v1 (Week 2-4)
+## Phase 2 - Perception v1 (Week 2-4) [Status: In Progress]
 Deliverables:
 - enemy detector baseline,
 - tracker integration (stable IDs),
@@ -332,7 +332,7 @@ Acceptance:
 - no double-count inflation in basic scenarios,
 - latency inside target budget.
 
-## Phase 3 - Navigation Loop + Recovery (Week 3-5)
+## Phase 3 - Navigation Loop + Recovery (Week 3-5) [Status: In Progress]
 Deliverables:
 - loop route format and loader,
 - waypoint runner,
@@ -342,7 +342,7 @@ Acceptance:
 - 1+ hour patrol with no hard deadlock in test route,
 - recovery works on synthetic stuck cases.
 
-## Phase 4 - Combat FSM + Skill Scheduler (Week 4-6)
+## Phase 4 - Combat FSM + Skill Scheduler (Week 4-6) [Status: In Progress]
 Deliverables:
 - full FSM orchestrator,
 - cooldown-aware skill selector for keys `1-4`,
@@ -353,7 +353,7 @@ Acceptance:
 - repeated pull-fight-resume cycles complete reliably,
 - skill use follows config and cooldown constraints.
 
-## Phase 5 - End-to-End MVP (Week 6-7)
+## Phase 5 - End-to-End MVP (Week 6-7) [Status: In Progress]
 Deliverables:
 - integrated UI + all services,
 - profile-based configs (route + skills + thresholds),
@@ -363,7 +363,7 @@ Acceptance:
 - 2-hour unattended loop run with bounded error rate,
 - logs complete and diagnosable.
 
-## Phase 6 - Auto-Labeling Pipeline (Week 7-9)
+## Phase 6 - Auto-Labeling Pipeline (Week 7-9) [Status: In Progress]
 Deliverables:
 - episode extraction,
 - two-pass auto-labeling,
@@ -373,7 +373,7 @@ Acceptance:
 - labeled dataset generated from MVP sessions,
 - low-confidence bucket isolated for review.
 
-## Phase 7 - Policy Training v1 (Week 9-11)
+## Phase 7 - Policy Training v1 (Week 9-11) [Status: Planned]
 Deliverables:
 - baseline imitation model,
 - offline evaluator + benchmark suite,
@@ -382,7 +382,7 @@ Deliverables:
 Acceptance:
 - policy improves at least one primary KPI without regressions in safety metrics.
 
-## Phase 8 - Hardening and Ops (Week 11-12)
+## Phase 8 - Hardening and Ops (Week 11-12) [Status: Planned]
 Deliverables:
 - telemetry dashboard,
 - regression tests + scenario tests,
@@ -392,6 +392,26 @@ Acceptance:
 - reproducible builds,
 - rollback-ready release process,
 - stable long-run sessions in target environment.
+
+### Implementation Status Snapshot (Updated)
+
+Completed:
+- Monorepo scaffold, configs, base schema, orchestrator FSM core.
+- Rule-based combat selector with cooldown gating for keys `1-4`.
+- Closed-loop navigation with stuck detection and recovery transition.
+- Primary-monitor-only frame capture and chunked telemetry writer.
+- Runtime guardrails: panic/pause, window/process allowlist checks.
+- End-to-end pipeline command: runtime -> labeling -> training.
+- Post-session regression report with `needs_review` flag.
+
+In progress:
+- Perception backend: YOLO-ready adapter exists, but production detector/tracker calibration is pending.
+- Long-run stability validation (multi-hour soak) pending.
+- Auto-labeling quality pass (two-stage fast+strong model) pending.
+
+Not started:
+- Imitation policy model (Stage B) and hybrid policy inference (Stage C).
+- Ops hardening: dashboard, packaging, release management workflow.
 
 ---
 
@@ -459,3 +479,22 @@ Secondary KPIs:
 Completion criterion for this roadmap step:
 - end of Week 2 should already produce playable closed-loop prototype with mocked or basic perception, full logging, and operator controls.
 
+---
+
+## 17) Next Milestone (Current Priority)
+
+Milestone: `Perception v1 Productionization + Long-Run Validation`
+
+Scope:
+1. Integrate real detector weights (`data/models/enemy_detector.pt`) and confirm runtime backend is `ultralytics`.
+2. Configure `enemy_class_ids` and suppress non-enemy detections.
+3. Add tracker layer (stable enemy IDs across frames) and avoid double-counting.
+4. Calibrate spatial mapping (`pixel_to_meter`, near/front cone thresholds) on target farm route.
+5. Run minimum 1-hour soak session using `run_session`.
+
+Acceptance criteria:
+- `perception_backend=ultralytics` in runtime summaries.
+- Average false-positive rate reduced to acceptable operational level (defined by session review checklist).
+- No critical deadlock during 1-hour run.
+- `session_pipeline_summary.json` and `regression_report.json` generated for soak session.
+- `needs_review=false` for at least one representative long-run session.
