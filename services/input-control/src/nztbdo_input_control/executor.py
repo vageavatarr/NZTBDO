@@ -266,7 +266,7 @@ class ActionExecutor:
     def _send_shift_q_q(self) -> tuple[bool, str]:
         VK_Q = 0x51
         try:
-            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
+            self._set_key_state(VK_SHIFT := 0xA0, keyup=False)
             time.sleep(0.01)
             ok1, _ = self._tap_key(VK_Q)
             time.sleep(0.04)
@@ -285,7 +285,7 @@ class ActionExecutor:
         MOUSEEVENTF_RIGHTDOWN = 0x0008
         MOUSEEVENTF_RIGHTUP = 0x0010
         try:
-            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
+            self._set_key_state(VK_SHIFT := 0xA0, keyup=False)
             time.sleep(0.01)
             user32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
             time.sleep(max(0.1, hold_sec))
@@ -305,7 +305,7 @@ class ActionExecutor:
         up = 0x0004 if left else 0x0010
         reason = "combo_shift_lmb" if left else "combo_shift_rmb"
         try:
-            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
+            self._set_key_state(VK_SHIFT := 0xA0, keyup=False)
             time.sleep(0.01)
             user32.mouse_event(down, 0, 0, 0, 0)
             time.sleep(0.03)
@@ -325,7 +325,7 @@ class ActionExecutor:
         if vk is None:
             return False, "invalid_key"
         try:
-            self._set_key_state(VK_SHIFT := 0x10, keyup=False)
+            self._set_key_state(VK_SHIFT := 0xA0, keyup=False)
             time.sleep(0.01)
             ok, _ = self._tap_key(vk)
             return ok, "combo_shift_key"
@@ -490,8 +490,29 @@ class ActionExecutor:
                 ("dwExtraInfo", ctypes.c_size_t),
             ]
 
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = [
+                ("dx", ctypes.c_long),
+                ("dy", ctypes.c_long),
+                ("mouseData", ctypes.c_ulong),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.c_size_t),
+            ]
+
+        class HARDWAREINPUT(ctypes.Structure):
+            _fields_ = [
+                ("uMsg", ctypes.c_ulong),
+                ("wParamL", ctypes.c_ushort),
+                ("wParamH", ctypes.c_ushort),
+            ]
+
         class INPUTUNION(ctypes.Union):
-            _fields_ = [("ki", KEYBDINPUT)]
+            _fields_ = [
+                ("ki", KEYBDINPUT),
+                ("mi", MOUSEINPUT),
+                ("hi", HARDWAREINPUT),
+            ]
 
         class INPUT(ctypes.Structure):
             _fields_ = [("type", ctypes.c_ulong), ("ii", INPUTUNION)]
@@ -516,9 +537,8 @@ class ActionExecutor:
         sent = user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(INPUT))
         if sent == 1:
             return True
-        # fallback
         user32.keybd_event(vk, 0, 0x0002 if keyup else 0, 0)
-        return True
+        return False
 
     def _post_key_tap(self, hwnd: int, vk: int, reason: str) -> tuple[bool, str]:
         user32 = ctypes.windll.user32
