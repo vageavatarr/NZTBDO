@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -7,6 +8,11 @@ namespace NZTBDO.WinForms;
 
 public sealed class MainForm : Form
 {
+    private const int WmHotkey = 0x0312;
+    private const int HotkeyIdF5 = 0xB105;
+    private const uint ModNone = 0x0000;
+    private const uint VkF5 = 0x74;
+
     private static readonly Regex SessionIdPattern = new(
         @"^\d{8}T\d{6}Z-[0-9a-f]{8}$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
@@ -42,6 +48,7 @@ public sealed class MainForm : Form
     private HashSet<string> _knownSessionIds = new(StringComparer.OrdinalIgnoreCase);
     private string? _lastEventsReadError;
     private DateTime _lastEventsWriteUtc = DateTime.MinValue;
+    private bool _f5HotkeyRegistered;
 
     public MainForm()
     {
@@ -112,6 +119,28 @@ public sealed class MainForm : Form
         _stopButton.Click += (_, _) => StopSession();
         _uiTimer.Tick += (_, _) => RefreshUi();
         FormClosing += (_, _) => StopSession();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        RegisterF5Hotkey();
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        UnregisterF5Hotkey();
+        base.OnHandleDestroyed(e);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WmHotkey && m.WParam == (IntPtr)HotkeyIdF5)
+        {
+            ToggleStartStopByHotkey();
+            return;
+        }
+        base.WndProc(ref m);
     }
 
     private void StartSession()
@@ -225,6 +254,16 @@ public sealed class MainForm : Form
         {
             KillOrphanedBotProcesses();
         }
+    }
+
+    private void ToggleStartStopByHotkey()
+    {
+        if (_process is not null)
+        {
+            StopSession();
+            return;
+        }
+        StartSession();
     }
 
     private void OnProcessExited()
@@ -535,4 +574,35 @@ public sealed class MainForm : Form
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
+
+    private void RegisterF5Hotkey()
+    {
+        if (_f5HotkeyRegistered || !IsHandleCreated)
+        {
+            return;
+        }
+
+        _f5HotkeyRegistered = RegisterHotKey(Handle, HotkeyIdF5, ModNone, VkF5);
+        if (!_f5HotkeyRegistered)
+        {
+            AppendOutput("[ERR] Failed to register global hotkey F5.");
+        }
+    }
+
+    private void UnregisterF5Hotkey()
+    {
+        if (!_f5HotkeyRegistered || !IsHandleCreated)
+        {
+            return;
+        }
+
+        UnregisterHotKey(Handle, HotkeyIdF5);
+        _f5HotkeyRegistered = false;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 }
