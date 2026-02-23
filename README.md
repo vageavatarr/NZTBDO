@@ -192,7 +192,6 @@ Current combo actions supported by executor:
 - `press_shift_lmb`
 - `press_shift_f`
 - `press_s_lmb`
-- `press_lmb` (distinct from `press_s_lmb`)
 
 ## Capture Demo (Chunked Telemetry)
 

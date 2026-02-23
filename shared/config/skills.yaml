@@ -52,11 +52,3 @@ skills:
     min_targets: 1
     max_targets: 2
     range_m: 2.0
-
-  - id: basic_lmb
-    key: "lmb"
-    kind: single
-    cooldown_sec: 0.0
-    priority: 50
-    min_targets: 1
-    range_m: 3.0

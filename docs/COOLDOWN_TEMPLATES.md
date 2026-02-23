@@ -19,6 +19,5 @@ Training target labels:
 - `cooldown_seconds`: continuous regression target
 
 Notes:
-- `press_s_lmb` and `press_lmb` are distinct actions and must remain separated in labeling/training.
-- `press_lmb` currently has no fixed cooldown icon template in this set.
+- `press_s_lmb` is the configured finisher action for combo training.
 - Template ROI is defined in config and will be calibrated on real sessions.

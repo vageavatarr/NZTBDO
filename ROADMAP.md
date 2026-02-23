@@ -214,12 +214,11 @@ Current combat input profile (`bdo_combo_v1`):
 - `press_shift_lmb` -> frontal short-range, 7s CD
 - `press_shift_f` -> frontal long-range, 8s CD
 - `press_s_lmb` -> frontal finisher, no CD
-- `press_lmb` -> separate basic hit, no CD (distinct from `press_s_lmb`)
 
 Cooldown icon templates are fixed for training:
 - canonical mapping in `shared/config/cooldown_templates_live_farm.yaml`
 - learning targets: `cooldown_state` + `cooldown_seconds`
-- `press_s_lmb` and `press_lmb` are trained as distinct actions with distinct cooldown-icon supervision
+- `press_s_lmb` is included as finisher action in cooldown-icon supervision
 
 Enemy visual signature for primary labeling:
 - pale/stone-like humanoid silhouette,

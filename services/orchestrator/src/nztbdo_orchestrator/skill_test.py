@@ -56,7 +56,6 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
         ("press_shift_lmb", step_delay),
         ("press_shift_f", step_delay),
         ("press_s_lmb", step_delay),
-        ("press_lmb", step_delay),
     ]
 
     outcomes: list[dict[str, Any]] = []

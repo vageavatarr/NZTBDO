@@ -238,7 +238,6 @@ These rules are required for initial supervised labeling:
 - `Shift+LMB`: short-range frontal hit, cooldown 7s.
 - `Shift+F`: long-range frontal hit, cooldown 8s.
 - `S+LMB`: short-range finisher, no cooldown, very small radius (1-2 targets).
-- `LMB`: separate basic hit (distinct from `S+LMB`), no cooldown.
 
 6. Enemy visual signature (primary farm target):
 - Humanoid, pale/stone-like body and armor silhouette.
@@ -250,4 +249,4 @@ These rules are required for initial supervised labeling:
 - User-provided 7 cooldown icons are fixed as template sequence for combo actions.
 - Source config: `shared/config/cooldown_templates_live_farm.yaml`.
 - These templates are primary supervision for cooldown state/seconds prediction.
-- `S+LMB` and `LMB` must stay separated as different skills in labels and policy training.
+- `S+LMB` is treated as the finisher action in labels and policy training.

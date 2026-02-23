@@ -233,7 +233,6 @@ class RuntimeLoop:
                 "front_shift_lmb": 0.0 if self.tick_index % 7 == 0 else 2.5,
                 "front_long_shift_f": 0.0 if self.tick_index % 9 == 0 else 4.0,
                 "finisher_s_lmb": 0.0,
-                "basic_lmb": 0.0,
             },
         )
         result = self.orchestrator.tick(tick_input)
