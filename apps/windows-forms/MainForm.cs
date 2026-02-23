@@ -24,6 +24,7 @@ public sealed class MainForm : Form
     };
 
     private readonly Button _startButton = new() { Text = "Start", Width = 120 };
+    private readonly Button _testSkillsButton = new() { Text = "Test Skills", Width = 120 };
     private readonly Button _stopButton = new() { Text = "Stop", Width = 120, Enabled = false };
 
     private readonly System.Windows.Forms.Timer _uiTimer = new() { Interval = 1000 };
@@ -79,6 +80,7 @@ public sealed class MainForm : Form
             FlowDirection = FlowDirection.LeftToRight
         };
         buttonsPanel.Controls.Add(_startButton);
+        buttonsPanel.Controls.Add(_testSkillsButton);
         buttonsPanel.Controls.Add(_stopButton);
         panel.Controls.Add(new Label { Text = "Control", AutoSize = true }, 0, 9);
         panel.Controls.Add(buttonsPanel, 1, 9);
@@ -99,12 +101,29 @@ public sealed class MainForm : Form
     private void BindEvents()
     {
         _startButton.Click += (_, _) => StartSession();
+        _testSkillsButton.Click += (_, _) => StartSkillTest();
         _stopButton.Click += (_, _) => StopSession();
         _uiTimer.Tick += (_, _) => RefreshUi();
         FormClosing += (_, _) => StopSession();
     }
 
     private void StartSession()
+    {
+        StartProcess(
+            arguments: "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 12000 --tick-sleep 0.05 --start-delay 2 --quiet-runtime",
+            statusText: "Running Session"
+        );
+    }
+
+    private void StartSkillTest()
+    {
+        StartProcess(
+            arguments: "-m nztbdo_orchestrator.skill_test --profile live_farm --repeats 1 --step-delay 0.5",
+            statusText: "Running Skill Test"
+        );
+    }
+
+    private void StartProcess(string arguments, string statusText)
     {
         if (_process is not null || _repoRoot is null)
         {
@@ -115,7 +134,7 @@ public sealed class MainForm : Form
         var psi = new ProcessStartInfo
         {
             FileName = "python",
-            Arguments = "-m nztbdo_orchestrator.run_session --profile live_farm --ticks 12000 --tick-sleep 0.05 --start-delay 2 --quiet-runtime",
+            Arguments = arguments,
             WorkingDirectory = workingDir,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -129,10 +148,7 @@ public sealed class MainForm : Form
             StartInfo = psi,
             EnableRaisingEvents = true
         };
-        _process.Exited += (_, _) =>
-        {
-            BeginInvoke(new Action(OnProcessExited));
-        };
+        _process.Exited += (_, _) => BeginInvoke(new Action(OnProcessExited));
         _process.OutputDataReceived += (_, e) =>
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
@@ -154,7 +170,7 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppendOutput("[ERR] Failed to start session: " + ex.Message);
+            AppendOutput("[ERR] Failed to start process: " + ex.Message);
             _process.Dispose();
             _process = null;
             return;
@@ -167,9 +183,10 @@ public sealed class MainForm : Form
         _lastEventsReadError = null;
         _lastEventsWriteUtc = DateTime.MinValue;
 
-        _statusValue.Text = "Running";
+        _statusValue.Text = statusText;
         _pidValue.Text = _process.Id.ToString();
         _startButton.Enabled = false;
+        _testSkillsButton.Enabled = false;
         _stopButton.Enabled = true;
         _uiTimer.Start();
         RefreshUi();
@@ -199,6 +216,7 @@ public sealed class MainForm : Form
     {
         _statusValue.Text = "Stopped";
         _startButton.Enabled = true;
+        _testSkillsButton.Enabled = true;
         _stopButton.Enabled = false;
         _pidValue.Text = "-";
 

@@ -82,7 +82,17 @@ dotnet run --project apps/windows-forms/NZTBDO.WinForms.csproj -c Release
 The form includes:
 - session timer (`Elapsed`)
 - runtime data (`Events`, `Paused Ticks`, `Guard Blocked`, latest `Session`, `Process PID`)
-- `Stop` button to terminate the active session process
+- `Start` button for `run_session`
+- `Test Skills` button for combo execution check
+- `Stop` button to terminate the active process
+
+Skill test from CLI:
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.skill_test --profile live_farm --repeats 1
+```
 
 ## Runtime Loop (Headless)
 
