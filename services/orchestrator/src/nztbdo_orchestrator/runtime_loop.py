@@ -69,6 +69,7 @@ class RuntimeLoop:
         self._raw_session_dir = _ROOT / "data" / "raw" / self.orchestrator.session_id
         self._frames_dir = self._raw_session_dir / "frames"
         self._telemetry = InputTelemetryRecorder(str(self._raw_session_dir), chunk_size=400)
+        self._combat_training_cfg = self._read_combat_training_cfg()
 
     def start(self) -> None:
         self._running = True
@@ -226,14 +227,7 @@ class RuntimeLoop:
             enemy_points=enemies,
             engage_confidence=0.78 if has_enemies else 0.0,
             combat_clear=combat_clear,
-            skill_cd={
-                "aoe_around_shift_q": 0.0 if self.tick_index % 10 == 0 else 5.0,
-                "aoe_followup_hold_q_4s": 0.0 if self.tick_index % 14 == 0 else 6.0,
-                "front_hold_shift_rmb": 0.0 if self.tick_index % 8 == 0 else 3.0,
-                "front_shift_lmb": 0.0 if self.tick_index % 7 == 0 else 2.5,
-                "front_long_shift_f": 0.0 if self.tick_index % 9 == 0 else 4.0,
-                "finisher_s_lmb": 0.0,
-            },
+            skill_cd=self._make_skill_cooldowns(),
         )
         result = self.orchestrator.tick(tick_input)
         self._record_keyboard_action(result, window_check)
@@ -335,6 +329,37 @@ class RuntimeLoop:
         if result.execution.performed:
             self._telemetry.record_keyboard(key=key, event_type="command")
             self._keyboard_actions_logged += 1
+
+    def _read_combat_training_cfg(self) -> dict[str, Any]:
+        cfg = _read_yaml(self.orchestrator.thresholds_path)
+        combat_cfg = cfg.get("combat")
+        if not isinstance(combat_cfg, dict):
+            return {"force_combat_training": False}
+        training_cfg = combat_cfg.get("training")
+        if not isinstance(training_cfg, dict):
+            return {"force_combat_training": False}
+        return {"force_combat_training": bool(training_cfg.get("force_combat_training", False))}
+
+    def _make_skill_cooldowns(self) -> dict[str, float]:
+        # In forced combat training mode we keep skills logically ready so the agent
+        # can learn ordering/timing without synthetic cooldown bottlenecks from the simulator.
+        if bool(self._combat_training_cfg.get("force_combat_training", False)):
+            return {
+                "aoe_around_shift_q": 0.0,
+                "aoe_followup_hold_q_4s": 0.0,
+                "front_hold_shift_rmb": 0.0,
+                "front_shift_lmb": 0.0,
+                "front_long_shift_f": 0.0,
+                "finisher_s_lmb": 0.0,
+            }
+        return {
+            "aoe_around_shift_q": 0.0 if self.tick_index % 10 == 0 else 5.0,
+            "aoe_followup_hold_q_4s": 0.0 if self.tick_index % 14 == 0 else 6.0,
+            "front_hold_shift_rmb": 0.0 if self.tick_index % 8 == 0 else 3.0,
+            "front_shift_lmb": 0.0 if self.tick_index % 7 == 0 else 2.5,
+            "front_long_shift_f": 0.0 if self.tick_index % 9 == 0 else 4.0,
+            "finisher_s_lmb": 0.0,
+        }
 
 
 def run(
