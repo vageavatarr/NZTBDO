@@ -38,3 +38,11 @@ cd services/labeling
 $env:PYTHONPATH='src'
 python -m nztbdo_labeling.main --logs-root ../../data/logs --labels-root ../../data/labels
 ```
+
+## Build Training Dataset + Offline Metrics
+
+```powershell
+cd services/training
+$env:PYTHONPATH='src'
+python -m nztbdo_training.main --labels-root ../../data/labels --dataset-file ../../data/processed/dataset_v1.jsonl --metrics-file ../../data/processed/metrics_v1.json
+```
