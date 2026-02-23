@@ -1,0 +1,37 @@
+version: 1
+profile_id: live_farm
+source: user_provided_cast_templates_2026-02-23
+
+# Cast templates are used to confirm that a skill was actually triggered
+# (separate from cooldown icon-state detection).
+templates:
+  - template_id: cast_01
+    skill_id: aoe_around_shift_q
+    action: press_shift_q
+  - template_id: cast_02
+    skill_id: aoe_followup_hold_q_4s
+    action: press_hold_q_4s
+  - template_id: cast_03
+    skill_id: front_hold_shift_rmb
+    action: press_shift_rmb_hold
+  - template_id: cast_04
+    skill_id: front_hold_shift_rmb_phase2
+    action: press_shift_rmb_hold
+  - template_id: cast_05
+    skill_id: front_shift_lmb
+    action: press_shift_lmb
+  - template_id: cast_06
+    skill_id: front_long_shift_f
+    action: press_shift_f
+  - template_id: cast_07
+    skill_id: finisher_s_lmb
+    action: press_s_lmb
+
+# ROI placeholders for cast-notification area in frame space.
+# Will be calibrated on live runs.
+roi:
+  mode: skill_cast_notification
+  x_norm: 0.50
+  y_norm: 0.80
+  width_norm: 0.40
+  height_norm: 0.18

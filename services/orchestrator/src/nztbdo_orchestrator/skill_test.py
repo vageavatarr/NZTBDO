@@ -10,13 +10,18 @@ import time
 from typing import Any
 
 from nztbdo_orchestrator.config import load_profile_config
+from nztbdo_orchestrator.cast_verifier import CastVerifier
 
 _ROOT = Path(__file__).resolve().parents[4]
 _INPUT_SRC = _ROOT / "services" / "input-control" / "src"
 if str(_INPUT_SRC) not in sys.path:
     sys.path.insert(0, str(_INPUT_SRC))
+_CAPTURE_SRC = _ROOT / "services" / "capture" / "src"
+if str(_CAPTURE_SRC) not in sys.path:
+    sys.path.insert(0, str(_CAPTURE_SRC))
 
 from nztbdo_input_control.executor import ActionExecutor
+from nztbdo_capture.screen_capture import PrimaryMonitorCapture
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,11 +29,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile", default="live_farm")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--step-delay", type=float, default=0.5)
+    parser.add_argument("--cast-delay", type=float, default=0.45)
+    parser.add_argument("--cast-threshold", type=float, default=0.58)
+    parser.add_argument("--cast-verify", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
 
 
-def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
+def run(
+    profile: str,
+    repeats: int,
+    step_delay: float,
+    cast_delay: float,
+    cast_threshold: float,
+    cast_verify: bool,
+) -> dict[str, Any]:
     cfg = load_profile_config(_ROOT, profile)
     thresholds = _read_yaml(cfg.thresholds_path)
     input_cfg = thresholds.get("input_control", {})
@@ -62,25 +77,67 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
 
     outcomes: list[dict[str, Any]] = []
     reason_counts: Counter[str] = Counter()
+    cast_counts: Counter[str] = Counter()
+    cast_details: list[dict[str, Any]] = []
+    report_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    debug_dir = _ROOT / "data" / "logs" / "skill_tests" / f"{report_stamp}-assets"
+    verifier = CastVerifier(_ROOT, profile=profile)
+    capture = PrimaryMonitorCapture() if (cast_verify and verifier.enabled) else None
     total = 0
     performed = 0
-    for idx in range(max(1, repeats)):
-        for action, pause_s in sequence:
-            total += 1
-            result = executor.execute(action)
-            if result.performed:
-                performed += 1
-            reason_counts[result.reason] += 1
-            row = {
-                "iteration": idx + 1,
-                "action": action,
-                "performed": bool(result.performed),
-                "reason": result.reason,
-                "timestamp_ms": int(time.time() * 1000),
-            }
-            outcomes.append(row)
-            print(json.dumps(row, ensure_ascii=True))
-            time.sleep(max(0.05, pause_s))
+    try:
+        for idx in range(max(1, repeats)):
+            for action, pause_s in sequence:
+                total += 1
+                result = executor.execute(action)
+                if result.performed:
+                    performed += 1
+                reason_counts[result.reason] += 1
+                row: dict[str, Any] = {
+                    "iteration": idx + 1,
+                    "action": action,
+                    "performed": bool(result.performed),
+                    "reason": result.reason,
+                    "timestamp_ms": int(time.time() * 1000),
+                }
+
+                if capture is not None and result.performed:
+                    time.sleep(max(0.05, cast_delay))
+                    frame = capture.capture_to_png(
+                        frames_dir=debug_dir,
+                        prefix=f"cast_{idx+1}_{action}",
+                        index=total,
+                    )
+                    crop_path = debug_dir / f"{Path(frame.path).stem}_roi.png"
+                    verified = verifier.verify(
+                        action=action,
+                        frame_path=Path(frame.path),
+                        crop_out_path=crop_path,
+                        threshold=cast_threshold,
+                    )
+                    if verified is not None:
+                        info = {
+                            "action": action,
+                            "frame_path": frame.path,
+                            "crop_path": verified.crop_path,
+                            "expected_template_id": verified.expected_template_id,
+                            "best_template_id": verified.best_template_id,
+                            "expected_score": verified.expected_score,
+                            "best_score": verified.best_score,
+                            "detected": verified.detected,
+                            "threshold": verified.threshold,
+                        }
+                        row["cast_verification"] = info
+                        cast_details.append(info)
+                        cast_counts["checked"] += 1
+                        cast_counts["detected" if verified.detected else "missed"] += 1
+
+                outcomes.append(row)
+                print(json.dumps(row, ensure_ascii=True))
+                time.sleep(max(0.05, pause_s))
+    finally:
+        if capture is not None:
+            capture.close()
 
     summary = {
         "profile": profile,
@@ -90,16 +147,27 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
         "success_ratio": round(performed / max(total, 1), 3),
         "reason_counts": dict(reason_counts),
         "dry_run": dry_run,
+        "cast_verify_enabled": bool(capture is not None),
+        "cast_verify_init_error": verifier.init_error if cast_verify else "",
+        "cast_stats": dict(cast_counts),
+        "cast_details": cast_details,
         "events": outcomes,
     }
-    report_path = _write_report(summary)
+    report_path = _write_report(summary, report_stamp=report_stamp)
     summary["report_path"] = str(report_path)
     return summary
 
 
 def main() -> None:
     args = parse_args()
-    summary = run(profile=args.profile, repeats=args.repeats, step_delay=args.step_delay)
+    summary = run(
+        profile=args.profile,
+        repeats=args.repeats,
+        step_delay=args.step_delay,
+        cast_delay=args.cast_delay,
+        cast_threshold=args.cast_threshold,
+        cast_verify=bool(args.cast_verify),
+    )
     print(json.dumps({"type": "skill_test_summary", **summary}, ensure_ascii=True))
 
 
@@ -119,11 +187,10 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return {}
 
 
-def _write_report(summary: dict[str, Any]) -> Path:
+def _write_report(summary: dict[str, Any], report_stamp: str) -> Path:
     reports_dir = _ROOT / "data" / "logs" / "skill_tests"
     reports_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    path = reports_dir / f"{ts}-skill_test.json"
+    path = reports_dir / f"{report_stamp}-skill_test.json"
     path.write_text(json.dumps(summary, ensure_ascii=True, indent=2), encoding="utf-8")
     return path
 
