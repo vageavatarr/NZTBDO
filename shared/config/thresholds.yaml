@@ -40,5 +40,6 @@ input_control:
   require_foreground_window: true
   bind_to_process: false
   allow_background_input: false
+  force_activate_before_input: false
   allowed_window_titles: []
   allowed_process_names: []

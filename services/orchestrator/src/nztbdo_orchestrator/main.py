@@ -87,6 +87,7 @@ class Orchestrator:
             allowed_process_names=input_cfg["allowed_process_names"],
             bind_to_process=input_cfg["bind_to_process"],
             allow_background_input=input_cfg["allow_background_input"],
+            force_activate_before_input=input_cfg["force_activate_before_input"],
             post_skill_pause_sec=self._read_post_skill_pause_sec(),
             post_move_skill_block_sec=self._read_post_move_skill_block_sec(),
         )
@@ -430,6 +431,7 @@ class Orchestrator:
                 "allowed_process_names": [],
                 "bind_to_process": False,
                 "allow_background_input": False,
+                "force_activate_before_input": False,
             }
 
         dry_run = input_cfg.get("dry_run", True)
@@ -447,6 +449,7 @@ class Orchestrator:
             "allowed_process_names": processes_clean,
             "bind_to_process": bool(input_cfg.get("bind_to_process", False)),
             "allow_background_input": bool(input_cfg.get("allow_background_input", False)),
+            "force_activate_before_input": bool(input_cfg.get("force_activate_before_input", False)),
         }
 
     def _resolve_enemy_features(self, inp: TickInput) -> tuple[int, int]:

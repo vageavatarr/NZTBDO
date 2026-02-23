@@ -40,6 +40,7 @@ input_control:
   require_foreground_window: false
   bind_to_process: true
   allow_background_input: false
+  force_activate_before_input: true
   allowed_window_titles:
     - Black Desert
   allowed_process_names:
