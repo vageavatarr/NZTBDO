@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 import sys
 import time
@@ -81,7 +82,10 @@ def run(profile: str, repeats: int, step_delay: float) -> dict[str, Any]:
         "success_ratio": round(performed / max(total, 1), 3),
         "reason_counts": dict(reason_counts),
         "dry_run": dry_run,
+        "events": outcomes,
     }
+    report_path = _write_report(summary)
+    summary["report_path"] = str(report_path)
     return summary
 
 
@@ -105,6 +109,15 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     if isinstance(loaded, dict):
         return loaded
     return {}
+
+
+def _write_report(summary: dict[str, Any]) -> Path:
+    reports_dir = _ROOT / "data" / "logs" / "skill_tests"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    path = reports_dir / f"{ts}-skill_test.json"
+    path.write_text(json.dumps(summary, ensure_ascii=True, indent=2), encoding="utf-8")
+    return path
 
 
 if __name__ == "__main__":
