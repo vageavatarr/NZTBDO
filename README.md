@@ -70,6 +70,15 @@ Controls:
 - `F12` panic stop
 
 The UI includes a profile selector populated from `shared/config/profiles/*.yaml`.
+UI `Start` now runs the runtime pipeline: primary monitor capture -> perception adapter -> orchestrator -> input executor.
+
+## Runtime Loop (Headless)
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.runtime_loop
+```
 
 ## Real Input Mode (Windows)
 

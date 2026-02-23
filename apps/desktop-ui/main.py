@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from pathlib import Path
 import sys
 import tkinter as tk
@@ -11,23 +10,22 @@ ORCH_SRC = ROOT / "services" / "orchestrator" / "src"
 if str(ORCH_SRC) not in sys.path:
     sys.path.insert(0, str(ORCH_SRC))
 
-from nztbdo_orchestrator.main import Orchestrator, TickInput
 from nztbdo_orchestrator.config import list_profiles
+from nztbdo_orchestrator.runtime_loop import RuntimeLoop
 
 
 class DesktopUI:
     def __init__(self) -> None:
         self.profiles = list_profiles(ROOT)
         self.selected_profile = self.profiles[0] if self.profiles else "default"
-        self.orchestrator = Orchestrator(profile_name=self.selected_profile)
+        self.runtime = RuntimeLoop(profile_name=self.selected_profile)
         self.running = False
         self.paused = False
         self.panic = False
-        self.tick_index = 0
 
         self.root = tk.Tk()
         self.root.title("NZTBDO Control")
-        self.root.geometry("560x330")
+        self.root.geometry("680x380")
         self.root.resizable(False, False)
 
         self._build_layout()
@@ -64,8 +62,10 @@ class DesktopUI:
         self.action_var = tk.StringVar(value="-")
         self.reason_var = tk.StringVar(value="-")
         self.exec_var = tk.StringVar(value="-")
-        self.session_var = tk.StringVar(value=self.orchestrator.session_id)
-        self.profile_id_var = tk.StringVar(value=self.orchestrator.profile_id)
+        self.session_var = tk.StringVar(value=self.runtime.orchestrator.session_id)
+        self.profile_id_var = tk.StringVar(value=self.runtime.orchestrator.profile_id)
+        self.frame_var = tk.StringVar(value="-")
+        self.enemies_var = tk.StringVar(value="0")
 
         info = ttk.Frame(container)
         info.pack(fill=tk.BOTH, expand=True)
@@ -75,6 +75,8 @@ class DesktopUI:
         self._row(info, "Execution", self.exec_var)
         self._row(info, "Session", self.session_var)
         self._row(info, "Profile", self.profile_id_var)
+        self._row(info, "Frame", self.frame_var)
+        self._row(info, "Enemies", self.enemies_var)
 
         status = ttk.Label(
             container,
@@ -99,25 +101,28 @@ class DesktopUI:
             return
         self.running = True
         self.paused = False
-        self.orchestrator.start()
+        self.runtime.start()
 
     def pause(self) -> None:
         if not self.running:
             return
         self.paused = True
+        self.runtime.pause()
 
     def stop(self) -> None:
         self.running = False
         self.paused = False
         self.panic = False
-        self.tick_index = 0
-        self.orchestrator = Orchestrator(profile_name=self.profile_var.get())
+        self.runtime.stop()
+        self.runtime = RuntimeLoop(profile_name=self.profile_var.get())
         self.state_var.set("IDLE")
         self.action_var.set("idle")
         self.reason_var.set("manual_stop")
         self.exec_var.set("performed=True reason=no_key_action")
-        self.session_var.set(self.orchestrator.session_id)
-        self.profile_id_var.set(self.orchestrator.profile_id)
+        self.session_var.set(self.runtime.orchestrator.session_id)
+        self.profile_id_var.set(self.runtime.orchestrator.profile_id)
+        self.frame_var.set("-")
+        self.enemies_var.set("0")
 
     def panic_stop(self) -> None:
         self.panic = True
@@ -131,59 +136,26 @@ class DesktopUI:
         if not self.running and not self.panic:
             return
 
-        self.tick_index += 1
-        tick_input = self._generate_tick()
-        result = self.orchestrator.tick(tick_input)
+        if self.panic:
+            state = self.runtime.panic()
+            self.panic = False
+        else:
+            state = self.runtime.step()
+            if state is None:
+                return
 
+        result = state.result
         self.state_var.set(result.state.value)
         self.action_var.set(result.action)
         self.reason_var.set(result.reason)
         self.exec_var.set(f"performed={result.execution.performed} reason={result.execution.reason}")
-        self.session_var.set(self.orchestrator.session_id)
-        self.profile_id_var.set(self.orchestrator.profile_id)
+        self.session_var.set(self.runtime.orchestrator.session_id)
+        self.profile_id_var.set(self.runtime.orchestrator.profile_id)
+        self.frame_var.set(state.frame_path if state.frame_path else "-")
+        self.enemies_var.set(str(state.enemies_detected))
 
         if result.state.value == "PANIC_STOP":
             self.running = False
-
-    def _generate_tick(self) -> TickInput:
-        if self.panic:
-            self.panic = False
-            return TickInput(panic=True)
-        if self.paused:
-            return TickInput(paused=True)
-
-        idx = self.tick_index
-        in_pull = (idx % 24) in {7, 8, 9, 10, 11, 12}
-        in_cleanup = (idx % 24) == 13
-        px = float(idx % 40)
-        py = float((idx * 1.5) % 40)
-
-        if not in_pull and not in_cleanup:
-            return TickInput(
-                pos_x=px,
-                pos_y=py,
-                heading_deg=0.0,
-                enemy_points=[],
-                engage_confidence=0.0,
-                skill_cd={"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0},
-            )
-
-        pack = random.randint(2, 6)
-        enemies = [(px + random.uniform(4.0, 7.0), py + random.uniform(-2.5, 2.5)) for _ in range(pack)]
-        return TickInput(
-            pos_x=px,
-            pos_y=py,
-            heading_deg=0.0,
-            enemy_points=enemies,
-            engage_confidence=0.78,
-            combat_clear=in_cleanup,
-            skill_cd={
-                "1": 0.0 if idx % 3 == 0 else 2.0,
-                "2": 0.0 if idx % 5 == 0 else 4.0,
-                "3": 0.0,
-                "4": 0.0 if idx % 9 == 0 else 9.0,
-            },
-        )
 
     def run(self) -> None:
         self.root.mainloop()
@@ -192,13 +164,16 @@ class DesktopUI:
         if self.running:
             return
         self.selected_profile = self.profile_var.get()
-        self.orchestrator = Orchestrator(profile_name=self.selected_profile)
+        self.runtime.stop()
+        self.runtime = RuntimeLoop(profile_name=self.selected_profile)
         self.state_var.set("IDLE")
         self.action_var.set("idle")
         self.reason_var.set("profile_switched")
         self.exec_var.set("performed=True reason=no_key_action")
-        self.session_var.set(self.orchestrator.session_id)
-        self.profile_id_var.set(self.orchestrator.profile_id)
+        self.session_var.set(self.runtime.orchestrator.session_id)
+        self.profile_id_var.set(self.runtime.orchestrator.profile_id)
+        self.frame_var.set("-")
+        self.enemies_var.set("0")
 
 
 def main() -> None:
