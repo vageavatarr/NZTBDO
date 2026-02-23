@@ -73,6 +73,17 @@ The UI includes a profile selector populated from `shared/config/profiles/*.yaml
 UI `Start` now runs the runtime pipeline: primary monitor capture -> perception adapter -> orchestrator -> input executor.
 If window guard constraints are set and active window/process does not match, runtime auto-pauses and auto-resumes when focus returns.
 
+## Windows Forms UI (Timer + Data + Stop)
+
+```powershell
+dotnet run --project apps/windows-forms/NZTBDO.WinForms.csproj -c Release
+```
+
+The form includes:
+- session timer (`Elapsed`)
+- runtime data (`Events`, `Paused Ticks`, `Guard Blocked`, latest `Session`, `Process PID`)
+- `Stop` button to terminate the active session process
+
 ## Runtime Loop (Headless)
 
 ```powershell
