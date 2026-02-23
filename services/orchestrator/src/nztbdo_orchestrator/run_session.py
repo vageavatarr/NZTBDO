@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 from nztbdo_orchestrator.runtime_loop import run as run_runtime
+from nztbdo_orchestrator.regression import evaluate_regression, write_regression_report
 
 _ROOT = Path(__file__).resolve().parents[4]
 _LABELING_SRC = _ROOT / "services" / "labeling" / "src"
@@ -75,6 +76,21 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
             "metrics": metrics,
             "metrics_file": str(metrics_file),
         },
+    }
+
+    regression = evaluate_regression(
+        logs_root=_ROOT / "data" / "logs",
+        current_session_id=str(runtime_summary["session_id"]),
+        current_summary=session_summary,
+        lookback=5,
+    )
+    regression_report_path = events_path.with_name("regression_report.json")
+    write_regression_report(regression_report_path, regression)
+    session_summary["regression"] = {
+        "needs_review": regression.needs_review,
+        "findings": regression.findings,
+        "baseline_sessions": regression.baseline_sessions,
+        "report_path": str(regression_report_path),
     }
 
     session_summary_path = events_path.with_name("session_pipeline_summary.json")
