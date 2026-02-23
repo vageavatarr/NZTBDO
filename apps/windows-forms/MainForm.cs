@@ -1,10 +1,16 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace NZTBDO.WinForms;
 
 public sealed class MainForm : Form
 {
+    private static readonly Regex SessionIdPattern = new(
+        @"^\d{8}T\d{6}Z-[0-9a-f]{8}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
+    );
+
     private readonly Label _statusValue = new() { AutoSize = true, Text = "Idle" };
     private readonly Label _elapsedValue = new() { AutoSize = true, Text = "00:00:00" };
     private readonly Label _sessionValue = new() { AutoSize = true, Text = "-" };
@@ -356,15 +362,9 @@ public sealed class MainForm : Form
 
     private static DirectoryInfo? GetLatestSessionDir(string logsRoot)
     {
-        var dir = new DirectoryInfo(logsRoot);
-        if (!dir.Exists)
-        {
-            return null;
-        }
-
         DirectoryInfo? best = null;
         DateTime bestWrite = DateTime.MinValue;
-        foreach (var sessionDir in dir.GetDirectories())
+        foreach (var sessionDir in EnumerateSessionDirs(logsRoot))
         {
             var eventsFile = Path.Combine(sessionDir.FullName, "events.jsonl");
             var writeTime = File.Exists(eventsFile)
@@ -383,13 +383,7 @@ public sealed class MainForm : Form
     private static HashSet<string> LoadSessionIds(string logsRoot)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var dir = new DirectoryInfo(logsRoot);
-        if (!dir.Exists)
-        {
-            return result;
-        }
-
-        foreach (var sessionDir in dir.GetDirectories())
+        foreach (var sessionDir in EnumerateSessionDirs(logsRoot))
         {
             result.Add(sessionDir.Name);
         }
@@ -399,15 +393,9 @@ public sealed class MainForm : Form
 
     private static string? GetNewestUnknownSessionDir(string logsRoot, HashSet<string> knownSessionIds)
     {
-        var dir = new DirectoryInfo(logsRoot);
-        if (!dir.Exists)
-        {
-            return null;
-        }
-
         DirectoryInfo? best = null;
         DateTime bestWrite = DateTime.MinValue;
-        foreach (var sessionDir in dir.GetDirectories())
+        foreach (var sessionDir in EnumerateSessionDirs(logsRoot))
         {
             if (knownSessionIds.Contains(sessionDir.Name))
             {
@@ -432,15 +420,9 @@ public sealed class MainForm : Form
 
     private static string? GetLatestSessionSince(string logsRoot, DateTime minUtc)
     {
-        var dir = new DirectoryInfo(logsRoot);
-        if (!dir.Exists)
-        {
-            return null;
-        }
-
         string? best = null;
         DateTime bestWrite = DateTime.MinValue;
-        foreach (var sessionDir in dir.GetDirectories())
+        foreach (var sessionDir in EnumerateSessionDirs(logsRoot))
         {
             var eventsFile = Path.Combine(sessionDir.FullName, "events.jsonl");
             var writeTime = File.Exists(eventsFile)
@@ -456,6 +438,24 @@ public sealed class MainForm : Form
         }
 
         return best;
+    }
+
+    private static IEnumerable<DirectoryInfo> EnumerateSessionDirs(string logsRoot)
+    {
+        var dir = new DirectoryInfo(logsRoot);
+        if (!dir.Exists)
+        {
+            yield break;
+        }
+
+        foreach (var sessionDir in dir.GetDirectories())
+        {
+            if (!SessionIdPattern.IsMatch(sessionDir.Name))
+            {
+                continue;
+            }
+            yield return sessionDir;
+        }
     }
 
     private static string? FindRepoRoot()
