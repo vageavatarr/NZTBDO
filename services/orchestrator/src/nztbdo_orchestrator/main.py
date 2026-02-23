@@ -34,6 +34,7 @@ from nztbdo_capture.session_logger import SessionLogger
 from nztbdo_input_control.executor import ActionExecutor, ExecutionResult
 from nztbdo_navigation.route_runner import NavigationStatus, load_route_runner_from_yaml
 from nztbdo_perception.spatial import EnemyPoint, compute_spatial_features
+from nztbdo_orchestrator.config import load_profile_config
 
 
 class FSMState(str, Enum):
@@ -73,14 +74,14 @@ class TickResult:
 
 
 class Orchestrator:
-    def __init__(self) -> None:
+    def __init__(self, profile_name: str = "default") -> None:
+        self._cfg = load_profile_config(_ROOT, profile_name)
         self.state = FSMState.IDLE
-        skills_config = _ROOT / "shared" / "config" / "skills.yaml"
-        self._combat_selector = load_selector_from_yaml(skills_config)
+        self._combat_selector = load_selector_from_yaml(self._cfg.skills_path)
         self._executor = ActionExecutor(max_hz=self._read_action_rate_limit(), dry_run=True)
         self._logger = SessionLogger(_ROOT / "data" / "logs")
         self._nav_runner = load_route_runner_from_yaml(
-            _ROOT / "shared" / "config" / "route.yaml",
+            self._cfg.route_path,
             stuck_timeout_sec=float(self._read_stuck_timeout_sec()),
         )
         self._perception_cfg = self._read_perception_cfg()
@@ -88,6 +89,14 @@ class Orchestrator:
     @property
     def session_id(self) -> str:
         return self._logger.session_id
+
+    @property
+    def profile_id(self) -> str:
+        return self._cfg.profile_id
+
+    @property
+    def events_path(self) -> Path:
+        return self._logger.events_path
 
     def start(self) -> None:
         if self.state == FSMState.IDLE:
@@ -219,9 +228,8 @@ class Orchestrator:
             return Decision(action="panic_stop", reason="panic")
         return Decision(action="idle", reason="fallback")
 
-    @staticmethod
-    def _read_action_rate_limit() -> int:
-        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+    def _read_action_rate_limit(self) -> int:
+        cfg = _read_yaml(self._cfg.thresholds_path)
         combat_cfg = cfg.get("combat")
         if not isinstance(combat_cfg, dict):
             return 8
@@ -230,9 +238,8 @@ class Orchestrator:
             return value
         return 8
 
-    @staticmethod
-    def _read_stuck_timeout_sec() -> float:
-        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+    def _read_stuck_timeout_sec(self) -> float:
+        cfg = _read_yaml(self._cfg.thresholds_path)
         nav_cfg = cfg.get("navigation")
         if not isinstance(nav_cfg, dict):
             return 6.0
@@ -241,9 +248,8 @@ class Orchestrator:
             return float(value)
         return 6.0
 
-    @staticmethod
-    def _read_perception_cfg() -> dict[str, float]:
-        cfg = _read_yaml(_ROOT / "shared" / "config" / "thresholds.yaml")
+    def _read_perception_cfg(self) -> dict[str, float]:
+        cfg = _read_yaml(self._cfg.thresholds_path)
         perception_cfg = cfg.get("perception")
         if not isinstance(perception_cfg, dict):
             return {

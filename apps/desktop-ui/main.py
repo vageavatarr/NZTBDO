@@ -12,11 +12,14 @@ if str(ORCH_SRC) not in sys.path:
     sys.path.insert(0, str(ORCH_SRC))
 
 from nztbdo_orchestrator.main import Orchestrator, TickInput
+from nztbdo_orchestrator.config import list_profiles
 
 
 class DesktopUI:
     def __init__(self) -> None:
-        self.orchestrator = Orchestrator()
+        self.profiles = list_profiles(ROOT)
+        self.selected_profile = self.profiles[0] if self.profiles else "default"
+        self.orchestrator = Orchestrator(profile_name=self.selected_profile)
         self.running = False
         self.paused = False
         self.panic = False
@@ -24,7 +27,7 @@ class DesktopUI:
 
         self.root = tk.Tk()
         self.root.title("NZTBDO Control")
-        self.root.geometry("520x300")
+        self.root.geometry("560x330")
         self.root.resizable(False, False)
 
         self._build_layout()
@@ -43,11 +46,26 @@ class DesktopUI:
         ttk.Button(controls, text="Stop (F7)", command=self.stop).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(controls, text="Panic (F12)", command=self.panic_stop).pack(side=tk.LEFT)
 
+        profile_row = ttk.Frame(container)
+        profile_row.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(profile_row, text="Profile:", width=12).pack(side=tk.LEFT)
+        self.profile_var = tk.StringVar(value=self.selected_profile)
+        self.profile_box = ttk.Combobox(
+            profile_row,
+            values=self.profiles,
+            textvariable=self.profile_var,
+            state="readonly",
+            width=20,
+        )
+        self.profile_box.pack(side=tk.LEFT)
+        self.profile_box.bind("<<ComboboxSelected>>", self._on_profile_changed)
+
         self.state_var = tk.StringVar(value="IDLE")
         self.action_var = tk.StringVar(value="-")
         self.reason_var = tk.StringVar(value="-")
         self.exec_var = tk.StringVar(value="-")
         self.session_var = tk.StringVar(value=self.orchestrator.session_id)
+        self.profile_id_var = tk.StringVar(value=self.orchestrator.profile_id)
 
         info = ttk.Frame(container)
         info.pack(fill=tk.BOTH, expand=True)
@@ -56,6 +74,7 @@ class DesktopUI:
         self._row(info, "Reason", self.reason_var)
         self._row(info, "Execution", self.exec_var)
         self._row(info, "Session", self.session_var)
+        self._row(info, "Profile", self.profile_id_var)
 
         status = ttk.Label(
             container,
@@ -92,12 +111,13 @@ class DesktopUI:
         self.paused = False
         self.panic = False
         self.tick_index = 0
-        self.orchestrator = Orchestrator()
+        self.orchestrator = Orchestrator(profile_name=self.profile_var.get())
         self.state_var.set("IDLE")
         self.action_var.set("idle")
         self.reason_var.set("manual_stop")
         self.exec_var.set("performed=True reason=no_key_action")
         self.session_var.set(self.orchestrator.session_id)
+        self.profile_id_var.set(self.orchestrator.profile_id)
 
     def panic_stop(self) -> None:
         self.panic = True
@@ -120,6 +140,7 @@ class DesktopUI:
         self.reason_var.set(result.reason)
         self.exec_var.set(f"performed={result.execution.performed} reason={result.execution.reason}")
         self.session_var.set(self.orchestrator.session_id)
+        self.profile_id_var.set(self.orchestrator.profile_id)
 
         if result.state.value == "PANIC_STOP":
             self.running = False
@@ -166,6 +187,18 @@ class DesktopUI:
 
     def run(self) -> None:
         self.root.mainloop()
+
+    def _on_profile_changed(self, _: object) -> None:
+        if self.running:
+            return
+        self.selected_profile = self.profile_var.get()
+        self.orchestrator = Orchestrator(profile_name=self.selected_profile)
+        self.state_var.set("IDLE")
+        self.action_var.set("idle")
+        self.reason_var.set("profile_switched")
+        self.exec_var.set("performed=True reason=no_key_action")
+        self.session_var.set(self.orchestrator.session_id)
+        self.profile_id_var.set(self.orchestrator.profile_id)
 
 
 def main() -> None:

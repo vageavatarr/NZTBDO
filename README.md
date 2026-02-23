@@ -31,6 +31,16 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.run_loop
 ```
 
+## Profile Run (Summary + Session Metrics)
+
+```powershell
+cd services/orchestrator
+$env:PYTHONPATH='src'
+python -m nztbdo_orchestrator.run_profile --profile default --ticks 600 --tick-sleep 0.05
+```
+
+Writes `summary.json` next to session `events.jsonl` in `data/logs/<session_id>/`.
+
 ## Auto-Label Latest Session
 
 ```powershell
@@ -58,6 +68,8 @@ Controls:
 - `F6` pause
 - `F7` stop
 - `F12` panic stop
+
+The UI includes a profile selector populated from `shared/config/profiles/*.yaml`.
 
 ## Capture Demo (Chunked Telemetry)
 
