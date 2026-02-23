@@ -1,0 +1,53 @@
+version: 1
+profile_id: live_farm
+source: user_provided_icons_2026-02-23
+
+# Template order is fixed by user-provided sequence (1..7).
+# These templates are used as primary supervision for cooldown-state learning.
+templates:
+  - template_id: icon_01
+    skill_id: aoe_around_shift_q
+    action: press_shift_q
+    notes: "user icon #1"
+  - template_id: icon_02
+    skill_id: aoe_followup_hold_q_4s
+    action: press_hold_q_4s
+    notes: "user icon #2"
+  - template_id: icon_03
+    skill_id: front_hold_shift_rmb
+    action: press_shift_rmb_hold
+    notes: "user icon #3"
+  - template_id: icon_04
+    skill_id: front_shift_lmb
+    action: press_shift_lmb
+    notes: "user icon #4"
+  - template_id: icon_05
+    skill_id: front_long_shift_f
+    action: press_shift_f
+    notes: "user icon #5"
+  - template_id: icon_06
+    skill_id: finisher_s_lmb
+    action: press_s_lmb
+    notes: "user icon #6"
+  - template_id: icon_07
+    skill_id: basic_lmb
+    action: press_lmb
+    notes: "user icon #7"
+
+# ROI settings for automatic icon crops in frame space.
+# Initial values are placeholders; will be calibrated on live runs.
+roi:
+  mode: bottom_center_skill_bar
+  x_norm: 0.50
+  y_norm: 0.94
+  width_norm: 0.36
+  height_norm: 0.10
+
+# Target label space for each template.
+labels:
+  cooldown_state:
+    - ready
+    - cooling
+  cooldown_seconds:
+    min: 0.0
+    max: 20.0

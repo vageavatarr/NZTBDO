@@ -245,3 +245,9 @@ These rules are required for initial supervised labeling:
 - Large melee weapon is frequently visible.
 - Yellow exclamation mark above head is the strongest aggro/engaged marker.
 - In dense foliage/partial occlusion, exclamation mark should be prioritized over full-body visibility.
+
+7. Cooldown icon supervision (fixed for learning):
+- User-provided 7 cooldown icons are fixed as template sequence for combo actions.
+- Source config: `shared/config/cooldown_templates_live_farm.yaml`.
+- These templates are primary supervision for cooldown state/seconds prediction.
+- `S+LMB` and `LMB` must stay separated as different skills in labels and policy training.

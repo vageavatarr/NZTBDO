@@ -94,6 +94,10 @@ $env:PYTHONPATH='src'
 python -m nztbdo_orchestrator.skill_test --profile live_farm --repeats 1
 ```
 
+Cooldown icon template mapping (for training):
+- `shared/config/cooldown_templates_live_farm.yaml`
+- reference notes: `docs/COOLDOWN_TEMPLATES.md`
+
 ## Runtime Loop (Headless)
 
 ```powershell
